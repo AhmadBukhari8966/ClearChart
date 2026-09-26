@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+.tools/
+*.exe
+*.test
+coverage.out
+*.log
+.DS_Store
+Thumbs.db
