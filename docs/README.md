@@ -1,3 +1,5 @@
+> Repository cleanup: the automated test suite and in-memory fixtures have been removed. Scan rendering was moved into handlers.go to preserve existing database image URLs. Historical test results below describe verification before cleanup; current checks are go build and go vet.
+
 # ClearChart maintainer handoff
 
 Work in **D:\projects\ClearChart**. The older `hackkathon` directory is a different copy. This page and [authentication.md](authentication.md) describe the current database-backed, authenticated application.
@@ -85,14 +87,13 @@ Preserve these constraints when changing templates. Browser history is not updat
 | Area | Files | Purpose |
 | --- | --- | --- |
 | Startup and routing | `main.go` | Configuration, embedded assets, HTTP server, shared app state. |
-| Authentication | `auth.go`, `templates/auth.html` | Supabase Auth requests, login/signup/logout, application sessions. |
+| Authentication | `auth.go`, `supabase_auth.go`, `templates/auth.html` | Supabase Auth requests, login/signup/logout, application sessions. |
 | Profile and care actions | `handlers.go` | Dashboard assembly, onboarding, records, report metadata, check-ins. |
 | Data contracts | `models.go` | Structs and the Store interface used by handlers and tests. |
 | Persistent storage | `store.go`, `schema.sql`, `migrations/` | lib/pq queries, database constraints, explicit schema upgrades. |
-| Live updates | `live.go`, `sse.go` | Notification subscriptions, authorized snapshots, SSE encoding. |
+| Live updates | `live.go` | Notification subscriptions, authorized snapshots, SSE encoding. |
 | Presentation | `templates/`, `static/` | Go templates, Datastar attributes, styling and images. |
-| Synthetic scan rendering | `mock_scans.go` | Existing seeded image URLs; keep while those rows are used. |
-| Regression fixtures | `memory_fixture_test.go`, `bulk_fixtures_test.go` | Test-only store and fixtures, excluded from the server. |
+| Synthetic scan rendering | `handlers.go` | Existing seeded image URLs; keep while those rows are used. |
 | Optional database fixtures | `seed.sql`, `seed_large.sql` | Repeatable synthetic rows, never loaded automatically. |
 
 For a new operation, follow the sequence of authenticate, authorize, validate, store, render, and publish. Adding a model field usually also needs a migration, query/scan changes, validation, templates, and meaningful regression coverage.

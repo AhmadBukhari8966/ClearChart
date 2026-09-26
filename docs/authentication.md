@@ -1,3 +1,5 @@
+> Repository cleanup: automated tests and their fixtures were subsequently removed at your request. Test results described below are historical. The scan endpoint remains in handlers.go because stored image URLs require it. Use go build and go vet plus manual workflow checks for the current repository.
+
 # Authentication and database-backed onboarding
 
 This is the current setup for ClearChart in `D:\projects\ClearChart`. Database records remain in Supabase. Supabase Auth now provides email/password identity, and the Go server keeps an opaque application session cookie.
@@ -109,12 +111,12 @@ Do not sign up using a seeded patient's email to claim their chart. Mapping an e
 
 | Item | Status |
 | --- | --- |
-| Runtime in-memory store and Go bulk seeding | Removed from the server; fixtures live only in `_test.go` files. |
+| Runtime in-memory store and Go bulk seeding | Removed from the server; the old test fixtures and automated tests were subsequently deleted. |
 | `/demo/patient`, `/demo/doctor`, demo profile switcher | Removed. Signed-out access goes through login. |
 | Automatic seed-doctor/patient care links at onboarding | Removed. Relationships are explicit. |
 | Existing Supabase synthetic rows | Preserved, including IDs and image references. |
 | `seed.sql`, `seed_large.sql` | Optional database fixtures, retained for reproducible testing. |
-| `mock_scans.go`, scan template and static scan image | Retained because existing medical records use those URLs. |
+| Scan handler in `handlers.go`, scan template and static scan image | Retained because existing medical records use those URLs. |
 | Datastar forms, patient selection, SSE hub | Retained with authenticated access. |
 | Rule-based summary, sample watch chart, filename-only uploads | Retained and labeled according to what they actually do. |
 

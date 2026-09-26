@@ -35,19 +35,18 @@ Your seeded database rows remain available. `seed.sql` and `seed_large.sql` rema
 
 New accounts start without care-team links. An administrator must explicitly connect a doctor's account to patients. [Authentication and testing setup](docs/authentication.md#connect-your-account-to-the-existing-synthetic-patients) includes SQL to connect your signed-in provider to the existing synthetic patients. Seeded profiles have no login credentials and are not automatically claimed by email.
 
-The runtime memory store, automatic Go fixture seeding, demo account switcher, and automatic care-team assignments have been removed. Memory fixtures remain in files ending `_test.go` so regression tests can run without your database; Go excludes those files from the server build.
+The runtime memory store, automatic Go fixture seeding, demo account switcher, and automatic care-team assignments have been removed. The old fixture and test files have also been removed to simplify the repository.
 
-Keep `mock_scans.go`, its template, and `static/ct-scan.svg`: existing database records reference these images. Reports still save filenames only; AI assistance is rule-based; Apple Watch cards contain sample data with no device connected.
+The scan handler now lives in `handlers.go`. Keep its template and `static/ct-scan.svg`: existing database records reference these images. Reports still save filenames only; AI assistance is rule-based; Apple Watch cards contain sample data with no device connected.
 
 ## Checks and handoff
 
 ```powershell
-go test ./...
 go vet ./...
 go build -o clearchart.exe .
 ```
 
-Tests use isolated fixtures and fake authentication responses. Optional PostgreSQL integration tests use a separately configured local test server and create/drop their own test database. Do not point them at your live Supabase database.
+The automated test suite has been removed at your request. Build and vet verify compilation and static checks; manually check login, onboarding, patient selection, record creation, and uploads after changes.
 
 Start with [the current maintainer handoff](docs/README.md), then [authentication setup and flow](docs/authentication.md). Older exhaustive function references and XML/SVG diagrams are retained with explicit historical labels where startup, authentication, and runtime fixture behavior changed.
 
