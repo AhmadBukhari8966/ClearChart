@@ -71,7 +71,7 @@ CREATE INDEX IF NOT EXISTS healing_progress_latest_idx ON public.healing_progres
 CREATE TABLE IF NOT EXISTS public.mock_biometric_data (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     doctor_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    heart_rate integer NOT NULL CHECK (heart_rate BETWEEN 30 AND 220),
+    heart_rate integer NOT NULL CHECK (heart_rate BETWEEN 31 AND 220),
     sleep_hours numeric(4,2) NOT NULL CHECK (sleep_hours BETWEEN 0 AND 24),
     timestamp timestamptz NOT NULL DEFAULT current_timestamp
 );

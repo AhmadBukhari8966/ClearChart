@@ -1,0 +1,70 @@
+{{define "doctor-selected-patient"}}
+<div id="selected-patient-summary" {{if .Patient.ID}}class="selected-patient-summary"{{end}}>
+  {{if .Patient.ID}}
+  <span class="small-icon">{{template "icon-check"}}</span>
+  <div>
+    <span data-show="$selectedpatient === '{{.Patient.ID}}'">Viewing chart</span>
+    <span data-show="$selectedpatient !== '{{.Patient.ID}}'" style="display: none" role="status">Loading selected chart…</span>
+    <strong>{{.Patient.Name}}</strong>
+    <small>{{if .Patient.DOB}}Born {{.Patient.DOB}}{{end}}{{if .Patient.BloodType}} &middot; Blood type {{.Patient.BloodType}}{{end}}</small>
+  </div>
+  <a href="#health-timeline">View timeline {{template "icon-arrow"}}</a>
+  {{end}}
+</div>
+{{end}}
+
+{{define "doctor-record-form"}}
+<section id="new-record" {{if .Patient.ID}}class="panel record-form-panel"{{end}}>
+  {{if .Patient.ID}}
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow compact-eyebrow">SHARE THE NEXT CHAPTER</p>
+      <h2>A care update for {{.Patient.Name}}</h2>
+    </div>
+    <span class="small-icon">{{template "icon-record"}}</span>
+  </div>
+  <form id="record-form-{{.Patient.ID}}" class="record-form" action="/add-record" method="post"
+    data-indicator:_savingnote
+    data-on:submit__prevent="$selectedpatient === '{{.Patient.ID}}' &amp;&amp; @post('/add-record', {contentType: 'form'})">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <input type="hidden" name="view_id" value="{{.ViewID}}">
+    <input type="hidden" name="doctor_id" value="{{.Profile.ID}}">
+    <input type="hidden" name="patient_id" value="{{.Patient.ID}}">
+    <fieldset class="record-fields" data-attr:disabled="$_savingnote || $selectedpatient !== '{{.Patient.ID}}'">
+      <label for="record-type-{{.Patient.ID}}">Type of update</label>
+      <select name="type" id="record-type-{{.Patient.ID}}">
+        <option value="note">Doctor's note</option>
+        <option value="prescription">Prescription</option>
+        <option value="imaging">Imaging &amp; scans</option>
+      </select>
+      <label for="record-content-{{.Patient.ID}}">Your note</label>
+      <textarea name="content" id="record-content-{{.Patient.ID}}" rows="4" minlength="3" maxlength="5000"
+        placeholder="Share observations, the next steps, or a treatment update. Your patient will see this in their timeline."
+        required></textarea>
+      <div class="record-form-footer">
+        <span>{{template "icon-people"}} Shared instantly with your patient</span>
+        <button type="submit" class="button button-primary"
+          data-attr:disabled="$_savingnote || $selectedpatient !== '{{.Patient.ID}}'">
+          Publish care update {{template "icon-arrow"}}
+        </button>
+      </div>
+    </fieldset>
+  </form>
+  {{end}}
+</section>
+{{end}}
+
+{{define "doctor-timeline"}}
+<section class="panel timeline-panel" id="health-timeline">
+  <div class="section-heading">
+    <div>
+      <h2>{{if .Patient.ID}}{{.Patient.Name}}'s timeline{{else}}Patient timeline{{end}}</h2>
+      <p class="section-subtitle">A shared view of the care you've given.</p>
+    </div>
+    <span class="subtle-tag"><span></span> Live</span>
+  </div>
+  <div id="timeline" class="timeline-list doctor-timeline">
+    {{range .Records}}{{template "record" .}}{{end}}
+  </div>
+</section>
+{{end}}

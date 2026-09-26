@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 //go:embed templates/*.html static/*
@@ -116,6 +118,12 @@ func main() {
 	defer stop()
 	var store Store
 	mode := "Demo mode"
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	if dsn := os.Getenv("DATABASE_URL"); dsn != "" {
 		connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		var err error

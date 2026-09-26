@@ -1,61 +1,127 @@
--- Run after schema.sql. Deterministic IDs and ON CONFLICT make reruns safe.
+-- Run after schema.sql. PostgreSQL generates every new row's UUID.
 -- All people, records, reports and measurements below are fictional demo data.
+-- Existing profiles are resolved by case-insensitive email; their IDs are preserved.
+-- Child fixtures are matched by their semantic payload, deliberately excluding time.
+-- Unchanged reruns preserve rows/timestamps; an edited payload can add a new row.
 BEGIN;
 
-INSERT INTO public.profiles (id, role, name, email, license_num, specialization, dob, blood_type) VALUES
-('00000000-0000-4000-8000-000000000001', 'doctor', 'Dr. Sarah Chen', 'sarah.chen@example.com', 'DEMO-ORTHO-2048', 'Orthopedics', NULL, NULL),
-('00000000-0000-4000-8000-000000000002', 'doctor', 'Dr. James Wilson', 'james.wilson@example.com', 'DEMO-PCP-1024', 'Primary care', NULL, NULL),
-('00000000-0000-4000-8000-000000000101', 'patient', 'Alex Morgan', 'alex.morgan@example.com', NULL, NULL, '1994-06-15', 'O+'),
-('00000000-0000-4000-8000-000000000102', 'patient', 'Jordan Lee', 'jordan.lee@example.com', NULL, NULL, '1987-03-22', 'A+'),
-('00000000-0000-4000-8000-000000000103', 'patient', 'Taylor Brooks', 'taylor.brooks@example.com', NULL, NULL, '2000-11-08', 'B+')
-ON CONFLICT (id) DO NOTHING;
+-- Both seed scripts use this transaction-scoped lock to serialize their reruns.
+SELECT pg_advisory_xact_lock(1129071442, 1);
 
-INSERT INTO public.care_team (patient_id, doctor_id) VALUES
-('00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000001'),
-('00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000002'),
-('00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000000001'),
-('00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000000002')
-ON CONFLICT DO NOTHING;
+INSERT INTO public.profiles (role, name, email, license_num, specialization, dob, blood_type) VALUES
+('doctor', 'Dr. Sarah Chen', 'sarah.chen@example.com', 'DEMO-ORTHO-2048', 'Orthopedics', NULL, NULL),
+('doctor', 'Dr. James Wilson', 'james.wilson@example.com', 'DEMO-PCP-1024', 'Primary care', NULL, NULL),
+('patient', 'Alex Morgan', 'alex.morgan@example.com', NULL, NULL, '1994-06-15', 'O+'),
+('patient', 'Jordan Lee', 'jordan.lee@example.com', NULL, NULL, '1987-03-22', 'A+'),
+('patient', 'Taylor Brooks', 'taylor.brooks@example.com', NULL, NULL, '2000-11-08', 'B+')
+ON CONFLICT (lower(email)) DO NOTHING;
 
-INSERT INTO public.medical_records (id, patient_id, doctor_id, type, content, timestamp, image_url) VALUES
-('10000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000001', 'note', 'Two-week knee recovery review: incision is healing well. Swelling has reduced and range of motion is improving. Continue the rehabilitation plan and follow up in two weeks.', current_timestamp - interval '2 hours', NULL),
-('10000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000001', 'prescription', 'Demo medication plan: acetaminophen as directed on the discharge instructions, only when needed. Review all medications with your care team.', current_timestamp - interval '26 hours', NULL),
-('10000000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000001', 'imaging', 'Follow-up knee imaging: postoperative alignment is maintained. No new concerning findings in this simulated study.', current_timestamp - interval '50 hours', '/static/ct-scan.svg'),
-('10000000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000002', 'note', 'Recovery check-in: sleep is improving and Alex is walking more comfortably with support. Keep sharing any changes with the care team.', current_timestamp - interval '74 hours', NULL),
-('10000000-0000-4000-8000-000000000005', '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000001', 'note', 'Initial postoperative review: begin the agreed gentle movement plan with your physiotherapist. Expected swelling is present; the wound looks clean.', current_timestamp - interval '170 hours', NULL),
-('10000000-0000-4000-8000-000000000006', '00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000000001', 'note', 'Shoulder follow-up: mobility is improving with physiotherapy. Continue the agreed exercise plan and review next month.', current_timestamp - interval '5 hours', NULL),
-('10000000-0000-4000-8000-000000000007', '00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000000001', 'prescription', 'Demo prescription review: continue current care plan. Medication questions will be reviewed at the next appointment.', current_timestamp - interval '52 hours', NULL),
-('10000000-0000-4000-8000-000000000008', '00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000000001', 'imaging', 'Simulated shoulder imaging reviewed. Findings are consistent with the established recovery plan.', current_timestamp - interval '100 hours', '/static/ct-scan.svg'),
-('10000000-0000-4000-8000-000000000009', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000000002', 'note', 'Ankle recovery check: less swelling reported and daily activity is gradually increasing. Follow up as scheduled.', current_timestamp - interval '8 hours', NULL),
-('10000000-0000-4000-8000-000000000010', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000000002', 'prescription', 'Demo medication reconciliation completed. No changes to the discharge medication plan.', current_timestamp - interval '76 hours', NULL),
-('10000000-0000-4000-8000-000000000011', '00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000000002', 'imaging', 'Simulated ankle imaging reviewed with the patient. Recovery remains on the expected course.', current_timestamp - interval '124 hours', '/static/ct-scan.svg')
-ON CONFLICT (id) DO NOTHING;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM (VALUES
+            ('sarah.chen@example.com', 'doctor'),
+            ('james.wilson@example.com', 'doctor'),
+            ('alex.morgan@example.com', 'patient'),
+            ('jordan.lee@example.com', 'patient'),
+            ('taylor.brooks@example.com', 'patient')
+        ) AS expected(email, role)
+        LEFT JOIN public.profiles p ON lower(p.email) = expected.email
+        WHERE p.id IS NULL OR p.role <> expected.role
+    ) THEN
+        RAISE EXCEPTION 'A base fixture email is missing or belongs to the wrong profile role; no seed changes were committed.';
+    END IF;
+END;
+$$;
 
-INSERT INTO public.patient_uploads (id, patient_id, file_name, timestamp) VALUES
-('20000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000101', 'physiotherapy-progress.pdf', current_timestamp - interval '4 hours'),
-('20000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000101', 'discharge-summary.pdf', current_timestamp - interval '168 hours'),
-('20000000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-000000000102', 'shoulder-exercises.pdf', current_timestamp - interval '12 hours'),
-('20000000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-000000000103', 'ankle-recovery-notes.pdf', current_timestamp - interval '20 hours')
-ON CONFLICT (id) DO NOTHING;
+WITH fixture(patient_email, doctor_email) AS (VALUES
+('alex.morgan@example.com', 'sarah.chen@example.com'),
+('alex.morgan@example.com', 'james.wilson@example.com'),
+('jordan.lee@example.com', 'sarah.chen@example.com'),
+('taylor.brooks@example.com', 'james.wilson@example.com')
+)
+INSERT INTO public.care_team (patient_id, doctor_id)
+SELECT p.id, d.id
+FROM fixture f
+JOIN public.profiles p ON lower(p.email) = f.patient_email
+JOIN public.profiles d ON lower(d.email) = f.doctor_email
+ON CONFLICT (patient_id, doctor_id) DO NOTHING;
 
-INSERT INTO public.healing_progress (id, patient_id, status_type, value, timestamp) VALUES
-('30000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000101', 'pain', 6, current_timestamp - interval '168 hours'),
-('30000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000101', 'mobility', 3, current_timestamp - interval '168 hours'),
-('30000000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-000000000101', 'energy', 4, current_timestamp - interval '168 hours'),
-('30000000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-000000000101', 'pain', 3, current_timestamp - interval '3 hours'),
-('30000000-0000-4000-8000-000000000005', '00000000-0000-4000-8000-000000000101', 'mobility', 7, current_timestamp - interval '3 hours'),
-('30000000-0000-4000-8000-000000000006', '00000000-0000-4000-8000-000000000101', 'energy', 8, current_timestamp - interval '3 hours'),
-('30000000-0000-4000-8000-000000000007', '00000000-0000-4000-8000-000000000102', 'pain', 2, current_timestamp - interval '6 hours'),
-('30000000-0000-4000-8000-000000000008', '00000000-0000-4000-8000-000000000102', 'mobility', 8, current_timestamp - interval '6 hours'),
-('30000000-0000-4000-8000-000000000009', '00000000-0000-4000-8000-000000000102', 'energy', 7, current_timestamp - interval '6 hours'),
-('30000000-0000-4000-8000-000000000010', '00000000-0000-4000-8000-000000000103', 'pain', 4, current_timestamp - interval '9 hours'),
-('30000000-0000-4000-8000-000000000011', '00000000-0000-4000-8000-000000000103', 'mobility', 6, current_timestamp - interval '9 hours'),
-('30000000-0000-4000-8000-000000000012', '00000000-0000-4000-8000-000000000103', 'energy', 7, current_timestamp - interval '9 hours')
-ON CONFLICT (id) DO NOTHING;
+WITH fixture(patient_email, doctor_email, type, content, timestamp, image_url) AS (VALUES
+('alex.morgan@example.com', 'sarah.chen@example.com', 'note', 'Two-week knee recovery review: incision is healing well. Swelling has reduced and range of motion is improving. Continue the rehabilitation plan and follow up in two weeks.', current_timestamp - interval '2 hours', NULL),
+('alex.morgan@example.com', 'sarah.chen@example.com', 'prescription', 'Demo medication plan: acetaminophen as directed on the discharge instructions, only when needed. Review all medications with your care team.', current_timestamp - interval '26 hours', NULL),
+('alex.morgan@example.com', 'sarah.chen@example.com', 'imaging', 'Follow-up knee imaging: postoperative alignment is maintained. No new concerning findings in this simulated study.', current_timestamp - interval '50 hours', '/static/ct-scan.svg'),
+('alex.morgan@example.com', 'james.wilson@example.com', 'note', 'Recovery check-in: sleep is improving and Alex is walking more comfortably with support. Keep sharing any changes with the care team.', current_timestamp - interval '74 hours', NULL),
+('alex.morgan@example.com', 'sarah.chen@example.com', 'note', 'Initial postoperative review: begin the agreed gentle movement plan with your physiotherapist. Expected swelling is present; the wound looks clean.', current_timestamp - interval '170 hours', NULL),
+('jordan.lee@example.com', 'sarah.chen@example.com', 'note', 'Shoulder follow-up: mobility is improving with physiotherapy. Continue the agreed exercise plan and review next month.', current_timestamp - interval '5 hours', NULL),
+('jordan.lee@example.com', 'sarah.chen@example.com', 'prescription', 'Demo prescription review: continue current care plan. Medication questions will be reviewed at the next appointment.', current_timestamp - interval '52 hours', NULL),
+('jordan.lee@example.com', 'sarah.chen@example.com', 'imaging', 'Simulated shoulder imaging reviewed. Findings are consistent with the established recovery plan.', current_timestamp - interval '100 hours', '/static/ct-scan.svg'),
+('taylor.brooks@example.com', 'james.wilson@example.com', 'note', 'Ankle recovery check: less swelling reported and daily activity is gradually increasing. Follow up as scheduled.', current_timestamp - interval '8 hours', NULL),
+('taylor.brooks@example.com', 'james.wilson@example.com', 'prescription', 'Demo medication reconciliation completed. No changes to the discharge medication plan.', current_timestamp - interval '76 hours', NULL),
+('taylor.brooks@example.com', 'james.wilson@example.com', 'imaging', 'Simulated ankle imaging reviewed with the patient. Recovery remains on the expected course.', current_timestamp - interval '124 hours', '/static/ct-scan.svg')
+)
+INSERT INTO public.medical_records (patient_id, doctor_id, type, content, timestamp, image_url)
+SELECT p.id, d.id, f.type, f.content, f.timestamp, f.image_url
+FROM fixture f
+JOIN public.profiles p ON lower(p.email) = f.patient_email
+JOIN public.profiles d ON lower(d.email) = f.doctor_email
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.medical_records r
+    WHERE r.patient_id = p.id AND r.doctor_id = d.id
+      AND r.type = f.type AND r.content = f.content
+      AND r.image_url IS NOT DISTINCT FROM f.image_url
+);
 
-INSERT INTO public.mock_biometric_data (id, doctor_id, heart_rate, sleep_hours, timestamp) VALUES
-('40000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000001', 64, 7.60, current_timestamp - interval '30 minutes'),
-('40000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002', 68, 7.20, current_timestamp - interval '45 minutes')
-ON CONFLICT (id) DO NOTHING;
+WITH fixture(patient_email, file_name, timestamp) AS (VALUES
+('alex.morgan@example.com', 'physiotherapy-progress.pdf', current_timestamp - interval '4 hours'),
+('alex.morgan@example.com', 'discharge-summary.pdf', current_timestamp - interval '168 hours'),
+('jordan.lee@example.com', 'shoulder-exercises.pdf', current_timestamp - interval '12 hours'),
+('taylor.brooks@example.com', 'ankle-recovery-notes.pdf', current_timestamp - interval '20 hours')
+)
+INSERT INTO public.patient_uploads (patient_id, file_name, timestamp)
+SELECT p.id, f.file_name, f.timestamp
+FROM fixture f
+JOIN public.profiles p ON lower(p.email) = f.patient_email
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.patient_uploads u
+    WHERE u.patient_id = p.id AND u.file_name = f.file_name
+);
+
+WITH fixture(patient_email, status_type, value, timestamp) AS (VALUES
+('alex.morgan@example.com', 'pain', 6, current_timestamp - interval '168 hours'),
+('alex.morgan@example.com', 'mobility', 3, current_timestamp - interval '168 hours'),
+('alex.morgan@example.com', 'energy', 4, current_timestamp - interval '168 hours'),
+('alex.morgan@example.com', 'pain', 3, current_timestamp - interval '3 hours'),
+('alex.morgan@example.com', 'mobility', 7, current_timestamp - interval '3 hours'),
+('alex.morgan@example.com', 'energy', 8, current_timestamp - interval '3 hours'),
+('jordan.lee@example.com', 'pain', 2, current_timestamp - interval '6 hours'),
+('jordan.lee@example.com', 'mobility', 8, current_timestamp - interval '6 hours'),
+('jordan.lee@example.com', 'energy', 7, current_timestamp - interval '6 hours'),
+('taylor.brooks@example.com', 'pain', 4, current_timestamp - interval '9 hours'),
+('taylor.brooks@example.com', 'mobility', 6, current_timestamp - interval '9 hours'),
+('taylor.brooks@example.com', 'energy', 7, current_timestamp - interval '9 hours')
+)
+INSERT INTO public.healing_progress (patient_id, status_type, value, timestamp)
+SELECT p.id, f.status_type, f.value, f.timestamp
+FROM fixture f
+JOIN public.profiles p ON lower(p.email) = f.patient_email
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.healing_progress h
+    WHERE h.patient_id = p.id AND h.status_type = f.status_type AND h.value = f.value
+);
+
+WITH fixture(doctor_email, heart_rate, sleep_hours, timestamp) AS (VALUES
+('sarah.chen@example.com', 64, 7.60, current_timestamp - interval '30 minutes'),
+('james.wilson@example.com', 68, 7.20, current_timestamp - interval '45 minutes')
+)
+INSERT INTO public.mock_biometric_data (doctor_id, heart_rate, sleep_hours, timestamp)
+SELECT d.id, f.heart_rate, f.sleep_hours, f.timestamp
+FROM fixture f
+JOIN public.profiles d ON lower(d.email) = f.doctor_email
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.mock_biometric_data b
+    WHERE b.doctor_id = d.id AND b.heart_rate = f.heart_rate AND b.sleep_hours = f.sleep_hours
+);
 
 COMMIT;

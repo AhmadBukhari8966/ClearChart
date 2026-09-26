@@ -106,6 +106,19 @@ func (s *memoryStore) Profile(ctx context.Context, id string) (Profile, error) {
 	}
 	return p, nil
 }
+func (s *memoryStore) ProfileByEmail(ctx context.Context, email string) (Profile, error) {
+	if err := ctx.Err(); err != nil {
+		return Profile{}, err
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, p := range s.profiles {
+		if strings.EqualFold(p.Email, email) {
+			return p, nil
+		}
+	}
+	return Profile{}, ErrNotFound
+}
 func (s *memoryStore) Profiles(ctx context.Context, role string) ([]Profile, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -256,10 +269,23 @@ func (s *memoryStore) CreateProfile(ctx context.Context, p Profile) (Profile, er
 	}
 	p.ID = newID()
 	s.profiles[p.ID] = p
+	// The seed email identifies a fixture; its storage-generated ID is opaque.
 	if p.Role == "patient" {
-		s.care[p.ID] = map[string]bool{demoDoctorID: true}
+		s.care[p.ID] = map[string]bool{}
+		for _, counterpart := range s.profiles {
+			if counterpart.Role == "doctor" && strings.EqualFold(counterpart.Email, demoDoctorEmail) {
+				s.care[p.ID][counterpart.ID] = true
+			}
+		}
 	} else {
-		s.care[demoPatientID][p.ID] = true
+		for _, counterpart := range s.profiles {
+			if counterpart.Role == "patient" && strings.EqualFold(counterpart.Email, demoPatientEmail) {
+				if s.care[counterpart.ID] == nil {
+					s.care[counterpart.ID] = map[string]bool{}
+				}
+				s.care[counterpart.ID][p.ID] = true
+			}
+		}
 	}
 	return p, nil
 }
@@ -356,6 +382,9 @@ func scanProfile(row rowScanner) (Profile, error) {
 }
 func (s *postgresStore) Profile(ctx context.Context, id string) (Profile, error) {
 	return scanProfile(s.db.QueryRowContext(ctx, `SELECT `+profileColumns+` FROM profiles p WHERE p.id=$1`, id))
+}
+func (s *postgresStore) ProfileByEmail(ctx context.Context, email string) (Profile, error) {
+	return scanProfile(s.db.QueryRowContext(ctx, `SELECT `+profileColumns+` FROM profiles p WHERE lower(p.email)=lower($1)`, email))
 }
 func (s *postgresStore) queryProfiles(ctx context.Context, query string, arg string) ([]Profile, error) {
 	rows, err := s.db.QueryContext(ctx, query, arg)
@@ -484,17 +513,19 @@ func (s *postgresStore) CreateProfile(ctx context.Context, p Profile) (Profile, 
 		return Profile{}, err
 	}
 	defer tx.Rollback()
-	p.ID = newID()
-	_, err = tx.ExecContext(ctx, `INSERT INTO profiles(id,role,name,email,license_num,specialization,dob,blood_type) VALUES($1,$2,$3,$4,NULLIF($5,''),NULLIF($6,''),NULLIF($7,'')::date,NULLIF($8,''))`, p.ID, p.Role, p.Name, p.Email, p.LicenseNum, p.Specialization, p.DOB, p.BloodType)
+	// Omit id so PostgreSQL applies profiles.id's DEFAULT gen_random_uuid().
+	// The returned ID, not a caller-supplied value, is used for relationships.
+	err = tx.QueryRowContext(ctx, `INSERT INTO profiles(role,name,email,license_num,specialization,dob,blood_type)
+ VALUES($1,$2,$3,NULLIF($4,''),NULLIF($5,''),NULLIF($6,'')::date,NULLIF($7,''))
+ RETURNING id::text`, p.Role, p.Name, p.Email, p.LicenseNum, p.Specialization, p.DOB, p.BloodType).Scan(&p.ID)
 	if err != nil {
 		return Profile{}, storageError(err)
 	}
-	// Onboarding connects each demo account to one seeded counterpart so both
-	// sides of the product can be explored immediately.
+	// Demo onboarding still links to the seeded counterpart, resolved by email.
 	if p.Role == "patient" {
-		_, err = tx.ExecContext(ctx, `INSERT INTO care_team(patient_id,doctor_id) SELECT $1,id FROM profiles WHERE id=$2 AND role='doctor' ON CONFLICT DO NOTHING`, p.ID, demoDoctorID)
+		_, err = tx.ExecContext(ctx, `INSERT INTO care_team(patient_id,doctor_id) SELECT $1,id FROM profiles WHERE lower(email)=lower($2) AND role='doctor' ON CONFLICT DO NOTHING`, p.ID, demoDoctorEmail)
 	} else {
-		_, err = tx.ExecContext(ctx, `INSERT INTO care_team(patient_id,doctor_id) SELECT id,$1 FROM profiles WHERE id=$2 AND role='patient' ON CONFLICT DO NOTHING`, p.ID, demoPatientID)
+		_, err = tx.ExecContext(ctx, `INSERT INTO care_team(patient_id,doctor_id) SELECT id,$1 FROM profiles WHERE lower(email)=lower($2) AND role='patient' ON CONFLICT DO NOTHING`, p.ID, demoPatientEmail)
 	}
 	if err != nil {
 		return Profile{}, storageError(err)
@@ -505,12 +536,11 @@ func (s *postgresStore) CreateProfile(ctx context.Context, p Profile) (Profile, 
 	return p, nil
 }
 func (s *postgresStore) AddRecord(ctx context.Context, r Record) (Record, error) {
-	// Authorization and insertion share one statement, avoiding a gap between
-	// checking a care-team relationship and writing the record.
+	// Authorization and insertion share one statement. ID and timestamp use DB defaults.
 	result, err := scanRecord(s.db.QueryRowContext(ctx, `WITH inserted AS (
-	 INSERT INTO medical_records(id,patient_id,doctor_id,type,content,image_url)
-	 SELECT $1,c.patient_id,c.doctor_id,$4,$5,NULLIF($6,'') FROM care_team c WHERE c.patient_id=$2 AND c.doctor_id=$3
-	 RETURNING *) SELECT `+recordColumns+` FROM inserted r JOIN profiles d ON d.id=r.doctor_id JOIN profiles p ON p.id=r.patient_id`, newID(), r.PatientID, r.DoctorID, r.Type, r.Content, r.ImageURL))
+  INSERT INTO medical_records(patient_id,doctor_id,type,content,image_url)
+  SELECT c.patient_id,c.doctor_id,$3,$4,NULLIF($5,'') FROM care_team c WHERE c.patient_id=$1 AND c.doctor_id=$2
+  RETURNING *) SELECT `+recordColumns+` FROM inserted r JOIN profiles d ON d.id=r.doctor_id JOIN profiles p ON p.id=r.patient_id`, r.PatientID, r.DoctorID, r.Type, r.Content, r.ImageURL))
 	if errors.Is(err, ErrNotFound) {
 		return Record{}, ErrForbidden
 	}
@@ -518,9 +548,10 @@ func (s *postgresStore) AddRecord(ctx context.Context, r Record) (Record, error)
 }
 func (s *postgresStore) AddUpload(ctx context.Context, u Upload) (Upload, error) {
 	return scanUpload(s.db.QueryRowContext(ctx, `WITH inserted AS (
-	 INSERT INTO patient_uploads(id,patient_id,file_name) SELECT $1,id,$3 FROM profiles WHERE id=$2 AND role='patient' RETURNING *)
-	 SELECT u.id::text,u.patient_id::text,u.file_name,u.timestamp,p.name FROM inserted u JOIN profiles p ON p.id=u.patient_id`, newID(), u.PatientID, u.FileName))
+  INSERT INTO patient_uploads(patient_id,file_name) SELECT id,$2 FROM profiles WHERE id=$1 AND role='patient' RETURNING *)
+  SELECT u.id::text,u.patient_id::text,u.file_name,u.timestamp,p.name FROM inserted u JOIN profiles p ON p.id=u.patient_id`, u.PatientID, u.FileName))
 }
 func (s *postgresStore) AddHealing(ctx context.Context, h Healing) (Healing, error) {
-	return scanHealing(s.db.QueryRowContext(ctx, `INSERT INTO healing_progress(id,patient_id,status_type,value) SELECT $1,id,$3,$4 FROM profiles WHERE id=$2 AND role='patient' RETURNING id::text,patient_id::text,status_type,value,timestamp`, newID(), h.PatientID, h.StatusType, h.Value))
+	return scanHealing(s.db.QueryRowContext(ctx, `INSERT INTO healing_progress(patient_id,status_type,value)
+ SELECT id,$2,$3 FROM profiles WHERE id=$1 AND role='patient' RETURNING id::text,patient_id::text,status_type,value,timestamp`, h.PatientID, h.StatusType, h.Value))
 }

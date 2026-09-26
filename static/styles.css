@@ -8,12 +8,14 @@
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important}}
 
 /* Keep large patient directories and reports within a browsable panel. */
+.record-fields{border:0;padding:0;margin:0;min-width:0;display:flex;flex-direction:column;gap:9px}
 #patient-directory{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;max-height:340px;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding:5px 9px 5px 5px;margin:10px -5px 0;scroll-padding:5px}
 #patient-directory:focus-visible,#reports:focus-visible{outline:3px solid #8fae81;outline-offset:4px;border-radius:5px}
 #patient-directory .patient-option{min-width:0;min-height:76px;scroll-margin:5px;gap:9px}
 #patient-directory .patient-option-details{min-width:0;overflow-wrap:anywhere}
 #patient-directory .patient-option small{display:block}
-#patient-directory .selected-check{flex-shrink:0}
+#patient-directory .selected-check{flex-shrink:0;visibility:hidden}
+#patient-directory .chosen .selected-check{visibility:visible}
 #patient-directory>.muted-copy{grid-column:1/-1;padding:18px 5px}
 .directory-hint{font-size:11px;line-height:1.65;color:#687668;margin-top:16px}
 .selected-patient-summary{display:flex;align-items:center;gap:10px;background:#f1f5ed;border:1px solid #dde7d5;border-radius:7px;padding:13px 14px;margin-top:18px;overflow-wrap:anywhere}

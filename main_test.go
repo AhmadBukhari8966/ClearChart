@@ -103,7 +103,11 @@ func TestDashboardsRenderAndDemoSessionsCoexist(t *testing.T) {
 			if inlineHandlers.MatchString(body) {
 				t.Error("dashboard includes native inline JavaScript event handlers")
 			}
-			for _, want := range []string{`id="timeline"`, "data-init=", "/events/" + role + "/"} {
+			liveAttribute := "data-init="
+			if role == "doctor" {
+				liveAttribute = "data-effect="
+			}
+			for _, want := range []string{`id="timeline"`, liveAttribute, "/events/" + role + "/"} {
 				if !strings.Contains(body, want) {
 					t.Errorf("dashboard missing %q", want)
 				}

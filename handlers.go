@@ -62,15 +62,17 @@ func (a *app) demo(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	id := r.URL.Query().Get("id")
-	if id == "" {
+	var p Profile
+	var err error
+	if id := r.URL.Query().Get("id"); id != "" {
+		p, err = a.store.Profile(r.Context(), id)
+	} else {
+		email := demoPatientEmail
 		if role == "doctor" {
-			id = demoDoctorID
-		} else {
-			id = demoPatientID
+			email = demoDoctorEmail
 		}
+		p, err = a.store.ProfileByEmail(r.Context(), email)
 	}
-	p, err := a.store.Profile(r.Context(), id)
 	if err != nil || p.Role != role {
 		http.Error(w, "Demo profile not found. Apply schema.sql and seed.sql for Supabase mode.", 404)
 		return
@@ -251,7 +253,7 @@ func (a *app) addRecord(w http.ResponseWriter, r *http.Request) {
 		a.feedback(w, "Choose a record type and enter a note between 3 and 5,000 characters.", 400)
 		return
 	}
-	record := Record{ID: newID(), PatientID: patientID, DoctorID: s.ProfileID, Type: kind, Content: content, Timestamp: time.Now().UTC()}
+	record := Record{PatientID: patientID, DoctorID: s.ProfileID, Type: kind, Content: content}
 	if kind == "imaging" {
 		record.ImageURL = "/static/ct-scan.svg"
 	}
@@ -318,7 +320,7 @@ func (a *app) uploadReport(w http.ResponseWriter, r *http.Request) {
 		a.feedback(w, "We couldn't read that report. Please try again.", 400)
 		return
 	}
-	u, err := a.store.AddUpload(r.Context(), Upload{ID: newID(), PatientID: s.ProfileID, FileName: name, Timestamp: time.Now().UTC()})
+	u, err := a.store.AddUpload(r.Context(), Upload{PatientID: s.ProfileID, FileName: name})
 	if err != nil {
 		a.feedback(w, "Your report could not be saved. Please try again.", 500)
 		return
@@ -354,7 +356,7 @@ func (a *app) addHealing(w http.ResponseWriter, r *http.Request) {
 		a.feedback(w, "Choose a health measure and a value from 1 to 10.", 400)
 		return
 	}
-	_, err = a.store.AddHealing(r.Context(), Healing{ID: newID(), PatientID: s.ProfileID, StatusType: kind, Value: value, Timestamp: time.Now().UTC()})
+	_, err = a.store.AddHealing(r.Context(), Healing{PatientID: s.ProfileID, StatusType: kind, Value: value})
 	if err != nil {
 		a.feedback(w, "Your check-in could not be saved. Please try again.", 500)
 		return
@@ -402,7 +404,7 @@ func (a *app) onboard(w http.ResponseWriter, r *http.Request) {
 		a.feedback(w, "This form expired. Refresh the page and try again.", 403)
 		return
 	}
-	p := Profile{ID: newID(), Role: role, Name: strings.TrimSpace(r.FormValue("name")), Email: strings.ToLower(strings.TrimSpace(r.FormValue("email"))), LicenseNum: strings.TrimSpace(r.FormValue("license_num")), Specialization: strings.TrimSpace(r.FormValue("specialization")), DOB: r.FormValue("dob"), BloodType: r.FormValue("blood_type")}
+	p := Profile{Role: role, Name: strings.TrimSpace(r.FormValue("name")), Email: strings.ToLower(strings.TrimSpace(r.FormValue("email"))), LicenseNum: strings.TrimSpace(r.FormValue("license_num")), Specialization: strings.TrimSpace(r.FormValue("specialization")), DOB: r.FormValue("dob"), BloodType: r.FormValue("blood_type")}
 	address, err := mail.ParseAddress(p.Email)
 	if len(p.Name) < 2 || len(p.Name) > 100 || len(p.Email) > 254 || err != nil || address.Address != p.Email {
 		a.feedback(w, "Enter your full name and a valid email address.", 400)

@@ -1,26 +1,141 @@
-{{define "doctor_dashboard.html"}}<!DOCTYPE html>
-<html lang="en"><head><title>Your care workspace · ClearChart</title>{{template "head"}}</head>
-<body><a class="skip-link" href="#main-content">Skip to content</a><div class="app-shell" data-init="@get('/events/doctor/{{.Profile.ID}}?patient={{.Patient.ID}}&amp;view={{.ViewID}}', {openWhenHidden: true})">{{template "sidebar" .}}<div class="workspace">{{template "topbar" .}}
-<main class="main-content" id="main-content"><div class="page-heading"><div><p class="eyebrow">BETTER TOGETHER. CLEARER FOR EVERYONE.</p><h1>Good care starts <em>with connection.</em></h1><p class="page-description">Welcome, {{.Profile.Name}}. Your patients' stories, in one place.</p></div><a class="button button-primary" href="#new-record">+ Add a care update</a></div>
-  <div class="doctor-summary-strip"><div><span class="summary-icon sage">{{template "icon-people"}}</span><strong>{{len .Patients}}</strong><span>connected patients</span></div><div><span class="summary-icon peach">{{template "icon-record"}}</span><strong id="record-count">{{.RecordCount}}</strong><span>records for this patient</span></div><div><span class="summary-icon lavender">{{template "icon-upload"}}</span><strong id="upload-count">{{.UploadCount}}</strong><span>reports for this patient</span></div></div>
-  <div id="form-feedback" role="status" aria-live="polite"></div>
-  <div class="dashboard-grid doctor-grid"><div class="main-column">
-    <section class="panel patients-panel" id="my-patients">
-      <div class="section-heading"><div><h2>My patients</h2><p class="section-subtitle">Select a patient to see their shared care story.</p></div><span class="team-count" aria-label="{{len .Patients}} connected patients">{{len .Patients}}</span></div>
-      {{if .Patient.ID}}<div class="selected-patient-summary"><span class="small-icon">{{template "icon-check"}}</span><div><span>Viewing chart</span><strong>{{.Patient.Name}}</strong><small>{{if .Patient.DOB}}Born {{.Patient.DOB}}{{end}}{{if .Patient.BloodType}} &middot; Blood type {{.Patient.BloodType}}{{end}}</small></div><a href="#health-timeline">View timeline {{template "icon-arrow"}}</a></div>{{end}}
-      <p class="directory-hint" id="patient-directory-hint">Scroll to browse {{len .Patients}} patients, then select a name to open their chart.</p>
-      <div class="patient-selector" id="patient-directory" role="region" tabindex="0" aria-label="Choose a patient" aria-describedby="patient-directory-hint">
-        {{range .Patients}}<a class="patient-option {{if eq .ID $.Patient.ID}}chosen{{end}}" href="/dashboard/doctor/{{$.Profile.ID}}?patient={{.ID}}#new-record" {{if eq .ID $.Patient.ID}}aria-current="true"{{end}}><span class="avatar avatar-sage">{{initials .Name}}</span><span class="patient-option-details"><strong>{{.Name}}</strong><small>{{if .DOB}}Born {{.DOB}}{{end}}{{if .BloodType}} &middot; {{.BloodType}}{{end}}</small></span>{{if eq .ID $.Patient.ID}}<span class="selected-check">{{template "icon-check"}}</span>{{end}}</a>{{else}}<p class="muted-copy">Your linked patients will appear here.</p>{{end}}
-      </div>
-    </section>
-    {{if .Patient.ID}}<section class="panel record-form-panel" id="new-record"><div class="section-heading"><div><p class="eyebrow compact-eyebrow">SHARE THE NEXT CHAPTER</p><h2>A care update for {{.Patient.Name}}</h2></div><span class="small-icon">{{template "icon-record"}}</span></div><form data-indicator:_savingnote action="/add-record" method="post" data-on:submit__prevent="@post('/add-record', {contentType: 'form'})" class="record-form"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="view_id" value="{{.ViewID}}"><input type="hidden" name="doctor_id" value="{{.Profile.ID}}"><input type="hidden" name="patient_id" value="{{.Patient.ID}}"><label for="record-type">Type of update</label><select name="type" id="record-type"><option value="note">Doctor's note</option><option value="prescription">Prescription</option><option value="imaging">Imaging & scans</option></select><label for="record-content">Your note</label><textarea name="content" id="record-content" rows="4" minlength="3" maxlength="5000" placeholder="Share observations, the next steps, or a treatment update. Your patient will see this in their timeline." required></textarea><div class="record-form-footer"><span>{{template "icon-people"}} Shared instantly with your patient</span><button type="submit" data-attr:disabled="$_savingnote" class="button button-primary">Publish care update {{template "icon-arrow"}}</button></div></form></section>{{end}}
-    <section class="panel timeline-panel" id="health-timeline"><div class="section-heading"><div><h2>{{if .Patient.ID}}{{.Patient.Name}}'s timeline{{else}}Patient timeline{{end}}</h2><p class="section-subtitle">A shared view of the care you've given.</p></div><span class="subtle-tag"><span></span> Live</span></div><div id="timeline" class="timeline-list doctor-timeline">{{range .Records}}{{template "record" .}}{{end}}</div></section>
-    <section class="panel reports-panel" id="reports-center"><div class="section-heading"><div><h2>Patient reports center</h2><p class="section-subtitle">Documents shared by all your connected patients.</p></div><span class="small-icon">{{template "icon-upload"}}</span></div><ul id="reports" class="uploads-list" tabindex="0" aria-label="Reports from connected patients">{{range .Reports}}{{template "report" .}}{{end}}</ul><p class="form-hint">Scroll to browse shared reports. Demo reports track filenames only. No file contents are stored.</p></section>
-  </div><aside class="secondary-column" aria-label="Your profile and personal health">
-    <section class="panel doctor-profile-card"><span class="profile-kicker">MY PROFILE</span><span class="avatar profile-avatar">{{initials .Profile.Name}}</span><h2>{{.Profile.Name}}</h2><p>{{.Profile.Specialization}}</p><div class="profile-facts"><div><span>License</span><strong>{{.Profile.LicenseNum}}</strong></div><div><span>Email</span><strong>{{.Profile.Email}}</strong></div></div><span class="profile-status">{{template "icon-check"}} Demo provider profile</span></section>
-    <section class="panel biometrics-card" id="biometrics"><div class="section-heading"><h2>Your health matters, too.</h2><span class="small-icon">{{template "icon-heart"}}</span></div><p class="section-subtitle">My personal data from Apple Watch</p><div class="watch-status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="5"/><path d="m8 5 1-4h6l1 4M8 19l1 4h6l1-4m3-10h2v5"/></svg><div><strong>Apple Watch</strong><span>Sample wellness snapshot</span></div><span class="mock-tag">MOCK</span></div><div class="biometric-numbers"><div><span class="metric-title">♡ Resting heart rate</span><strong>{{if .Biometric.HeartRate}}{{.Biometric.HeartRate}}{{else}}--{{end}}<small>bpm</small></strong><span class="metric-caption">{{if .Biometric.HeartRate}}Sample reading{{else}}No sample reading{{end}}</span></div><div><span class="metric-title sleep-title">☾ Time asleep</span><strong>{{if .Biometric.SleepHours}}{{printf "%.1f" .Biometric.SleepHours}}{{else}}--{{end}}<small>hrs</small></strong><span class="metric-caption">Last night's sample</span></div></div><div class="sparkline-chart" role="img" aria-label="Illustrative weekly heart rate chart"><div class="chart-guide"><span>80</span><span>60</span></div><svg viewBox="0 0 270 75" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="heart-fill" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#e1a399" stop-opacity=".25"/><stop offset="1" stop-color="#e1a399" stop-opacity="0"/></linearGradient></defs><path d="M0 39C16 39 20 13 38 18S66 60 84 43s21-29 39-20 19 24 40 19 24-30 40-25 19 30 39 25 17-21 28-21V75H0Z" fill="url(#heart-fill)"/><path d="M0 39C16 39 20 13 38 18S66 60 84 43s21-29 39-20 19 24 40 19 24-30 40-25 19 30 39 25 17-21 28-21" stroke="#c38179" stroke-width="2.5" fill="none"/></svg></div><div class="chart-days"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><p class="biometric-disclosure">Illustrative data. No device is connected.</p></section>
-    {{template "healing-panel" .}}
-    {{if .Patient.ID}}{{template "ai-summary" .}}{{end}}
-    <div class="care-quote"><span>“</span><p>When everyone sees the whole picture, better care follows.</p><small>THE CLEARCHART APPROACH</small></div>
-  </aside></div><footer class="page-footer"><span>Made for a more connected kind of care.</span><span>ClearChart © {{.Today.Year}}</span></footer>
-</main></div></div></body></html>{{end}}
+{{define "doctor_dashboard.html"}}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Your care workspace · ClearChart</title>{{template "head"}}
+</head>
+
+<body><a class="skip-link" href="#main-content">Skip to content</a>
+  <div class="app-shell"
+    data-signals="{selectedpatient: '{{.Patient.ID}}', _savingnote: false}"
+    data-effect="$selectedpatient; @get('/events/doctor/{{.Profile.ID}}?view={{.ViewID}}', {openWhenHidden: true, filterSignals: {include: /^selectedpatient$/}})">
+    {{template "sidebar" .}}<div class="workspace">{{template "topbar" .}}
+      <main class="main-content" id="main-content">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">BETTER TOGETHER. CLEARER FOR EVERYONE.</p>
+            <h1>Good care starts <em>with connection.</em></h1>
+            <p class="page-description">Welcome, {{.Profile.Name}}. Your patients' stories, in one place.</p>
+          </div><a class="button button-primary" href="#new-record">+ Add a care update</a>
+        </div>
+        <div class="doctor-summary-strip">
+          <div><span class="summary-icon sage">{{template "icon-people"}}</span><strong>{{len
+              .Patients}}</strong><span>connected patients</span></div>
+          <div><span class="summary-icon peach">{{template "icon-record"}}</span><strong
+              id="record-count">{{.RecordCount}}</strong><span>records for this patient</span></div>
+          <div><span class="summary-icon lavender">{{template "icon-upload"}}</span><strong
+              id="upload-count">{{.UploadCount}}</strong><span>reports for this patient</span></div>
+        </div>
+        <div id="form-feedback" role="status" aria-live="polite"></div>
+        <div class="dashboard-grid doctor-grid">
+          <div class="main-column">
+            <section class="panel patients-panel" id="my-patients">
+              <div class="section-heading">
+                <div>
+                  <h2>My patients</h2>
+                  <p class="section-subtitle">Select a patient to see their shared care story.</p>
+                </div><span class="team-count" aria-label="{{len .Patients}} connected patients">{{len
+                  .Patients}}</span>
+              </div>
+              {{template "doctor-selected-patient" .}}
+              <p class="directory-hint" id="patient-directory-hint">Scroll to browse {{len .Patients}} patients, then
+                select a name to open their chart.</p>
+              <div class="patient-selector" id="patient-directory" role="region" tabindex="0"
+                aria-label="Choose a patient" aria-describedby="patient-directory-hint">
+                {{range .Patients}}<a class="patient-option {{if eq .ID $.Patient.ID}}chosen{{end}}"
+                  href="/dashboard/doctor/{{$.Profile.ID}}?patient={{.ID}}"
+                  data-on:click__prevent="!$_savingnote &amp;&amp; ($selectedpatient = '{{.ID}}')"
+                  data-class:chosen="$selectedpatient === '{{.ID}}'"
+                  data-attr:aria-current="$selectedpatient === '{{.ID}}' ? 'true' : null"
+                  {{if eq .ID $.Patient.ID}}aria-current="true"{{end}}><span class="avatar avatar-sage">{{initials
+                    .Name}}</span><span class="patient-option-details"><strong>{{.Name}}</strong><small>{{if .DOB}}Born
+                      {{.DOB}}{{end}}{{if .BloodType}} &middot; {{.BloodType}}{{end}}</small></span>
+                  <span class="selected-check">{{template "icon-check"}}</span></a>{{else}}<p
+                  class="muted-copy">Your linked patients will appear here.</p>{{end}}
+              </div>
+            </section>
+            {{template "doctor-record-form" .}}
+            {{template "doctor-timeline" .}}
+            <section class="panel reports-panel" id="reports-center">
+              <div class="section-heading">
+                <div>
+                  <h2>Patient reports center</h2>
+                  <p class="section-subtitle">Documents shared by all your connected patients.</p>
+                </div><span class="small-icon">{{template "icon-upload"}}</span>
+              </div>
+              <ul id="reports" class="uploads-list" tabindex="0" aria-label="Reports from connected patients">{{range
+                .Reports}}{{template "report" .}}{{end}}</ul>
+              <p class="form-hint">Scroll to browse shared reports. Demo reports track filenames only. No file contents
+                are stored.</p>
+            </section>
+          </div>
+          <aside class="secondary-column" aria-label="Your profile and personal health">
+            <section class="panel doctor-profile-card"><span class="profile-kicker">MY PROFILE</span><span
+                class="avatar profile-avatar">{{initials .Profile.Name}}</span>
+              <h2>{{.Profile.Name}}</h2>
+              <p>{{.Profile.Specialization}}</p>
+              <div class="profile-facts">
+                <div><span>License</span><strong>{{.Profile.LicenseNum}}</strong></div>
+                <div><span>Email</span><strong>{{.Profile.Email}}</strong></div>
+              </div><span class="profile-status">{{template "icon-check"}} Demo provider profile</span>
+            </section>
+            <section class="panel biometrics-card" id="biometrics">
+              <div class="section-heading">
+                <h2>Your health matters, too.</h2><span class="small-icon">{{template "icon-heart"}}</span>
+              </div>
+              <p class="section-subtitle">My personal data from Apple Watch</p>
+              <div class="watch-status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                  aria-hidden="true">
+                  <rect x="5" y="5" width="14" height="14" rx="5" />
+                  <path d="m8 5 1-4h6l1 4M8 19l1 4h6l1-4m3-10h2v5" />
+                </svg>
+                <div><strong>Apple Watch</strong><span>Sample wellness snapshot</span></div><span
+                  class="mock-tag">MOCK</span>
+              </div>
+              <div class="biometric-numbers">
+                <div><span class="metric-title">♡ Resting heart rate</span><strong>{{if
+                    .Biometric.HeartRate}}{{.Biometric.HeartRate}}{{else}}--{{end}}<small>bpm</small></strong><span
+                    class="metric-caption">{{if .Biometric.HeartRate}}Sample reading{{else}}No sample
+                    reading{{end}}</span></div>
+                <div><span class="metric-title sleep-title">☾ Time asleep</span><strong>{{if
+                    .Biometric.SleepHours}}{{printf "%.1f"
+                    .Biometric.SleepHours}}{{else}}--{{end}}<small>hrs</small></strong><span class="metric-caption">Last
+                    night's sample</span></div>
+              </div>
+              <div class="sparkline-chart" role="img" aria-label="Illustrative weekly heart rate chart">
+                <div class="chart-guide"><span>80</span><span>60</span></div><svg viewBox="0 0 270 75"
+                  preserveAspectRatio="none" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="heart-fill" x1="0" y1="0" x2="0" y2="1">
+                      <stop stop-color="#e1a399" stop-opacity=".25" />
+                      <stop offset="1" stop-color="#e1a399" stop-opacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M0 39C16 39 20 13 38 18S66 60 84 43s21-29 39-20 19 24 40 19 24-30 40-25 19 30 39 25 17-21 28-21V75H0Z"
+                    fill="url(#heart-fill)" />
+                  <path
+                    d="M0 39C16 39 20 13 38 18S66 60 84 43s21-29 39-20 19 24 40 19 24-30 40-25 19 30 39 25 17-21 28-21"
+                    stroke="#c38179" stroke-width="2.5" fill="none" />
+                </svg>
+              </div>
+              <div class="chart-days">
+                <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+              <p class="biometric-disclosure">Illustrative data. No device is connected.</p>
+            </section>
+            {{template "healing-panel" .}}
+            {{if .Patient.ID}}{{template "ai-summary" .}}{{end}}
+            <div class="care-quote"><span>“</span>
+              <p>When everyone sees the whole picture, better care follows.</p><small>THE CLEARCHART APPROACH</small>
+            </div>
+          </aside>
+        </div>
+        <footer class="page-footer"><span>Made for a more connected kind of care.</span><span>ClearChart ©
+            {{.Today.Year}}</span></footer>
+      </main>
+    </div>
+  </div>
+</body>
+
+</html>{{end}}

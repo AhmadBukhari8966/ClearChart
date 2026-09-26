@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -85,6 +86,23 @@ func (a *app) events(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	patientID := r.URL.Query().Get("patient")
+	// The doctor uses one fixed Datastar action URL. Only this signal changes,
+	// allowing Datastar to cancel the previous stream on every patient click.
+	// Keep the query parameter for bookmarked pages and non-Datastar clients.
+	if role == "doctor" {
+		if raw := r.URL.Query().Get("datastar"); raw != "" {
+			var selection struct {
+				PatientID string `json:"selectedpatient"`
+			}
+			if len(raw) > 4096 || json.Unmarshal([]byte(raw), &selection) != nil {
+				http.Error(w, "Invalid patient selection.", http.StatusBadRequest)
+				return
+			}
+			if selection.PatientID != "" {
+				patientID = selection.PatientID
+			}
+		}
+	}
 	viewID := r.URL.Query().Get("view")
 	ch, unsubscribe := a.hub.subscribe()
 	defer unsubscribe()
@@ -103,6 +121,9 @@ func (a *app) events(w http.ResponseWriter, r *http.Request) {
 	d.ViewID = viewID
 	if err = writeStream(w, func() {
 		fmt.Fprint(w, ": connected\n\n")
+		if role == "doctor" {
+			a.doctorContext(w, d)
+		}
 		a.snapshot(w, d)
 	}); err != nil {
 		return
@@ -136,6 +157,23 @@ func (a *app) events(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+// Update only the selected chart. The patient directory, page shell and their
+// scroll positions stay untouched. Form field IDs include the patient ID so a
+// draft cannot follow the doctor into a different patient's chart. Regular
+// snapshots never replace the form, preserving drafts while live updates arrive.
+func (a *app) doctorContext(w http.ResponseWriter, d Dashboard) {
+	for _, fragment := range []struct{ name, selector string }{
+		{"doctor-selected-patient", "#selected-patient-summary"},
+		{"doctor-timeline", "#health-timeline"},
+		{"doctor-record-form", "#new-record"},
+	} {
+		if h, err := a.render(fragment.name, d); err == nil {
+			patch(w, fragment.selector, "outer", h)
+		}
+	}
+	patch(w, "#form-feedback", "outer", `<div id="form-feedback" role="status" aria-live="polite"></div>`)
 }
 
 func (a *app) snapshot(w http.ResponseWriter, d Dashboard) {

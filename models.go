@@ -7,9 +7,13 @@ import (
 	"time"
 )
 
+// Fixed IDs belong only to the disposable in-memory fixtures.
+// Database profiles are located by their fixture email and receive IDs from PostgreSQL.
 const (
-	demoDoctorID  = "00000000-0000-4000-8000-000000000001"
-	demoPatientID = "00000000-0000-4000-8000-000000000101"
+	demoDoctorEmail  = "sarah.chen@example.com"
+	demoPatientEmail = "alex.morgan@example.com"
+	demoDoctorID     = "00000000-0000-4000-8000-000000000001"
+	demoPatientID    = "00000000-0000-4000-8000-000000000101"
 )
 
 type Profile struct {
@@ -53,6 +57,7 @@ type Dashboard struct {
 
 type Store interface {
 	Profile(context.Context, string) (Profile, error)
+	ProfileByEmail(context.Context, string) (Profile, error)
 	Profiles(context.Context, string) ([]Profile, error)
 	CareTeam(context.Context, string) ([]Profile, error)
 	Patients(context.Context, string) ([]Profile, error)

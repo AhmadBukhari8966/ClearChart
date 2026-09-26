@@ -1,36 +1,57 @@
-{{define "mock_scan.svg"}}<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480" viewBox="0 0 720 480" role="img" aria-labelledby="scan-title scan-description">
-<title id="scan-title">Illustrative mock scan for {{.Patient.Name}}, series {{.Number}}</title>
-<desc id="scan-description">Synthetic cross-section illustration for testing the ClearChart patient timeline. This is not a clinical image.</desc>
-<defs>
- <radialGradient id="tissue"><stop stop-color="#778d86"/><stop offset=".65" stop-color="#45564f"/><stop offset="1" stop-color="#192922"/></radialGradient>
- <radialGradient id="bone"><stop stop-color="#86998f"/><stop offset=".7" stop-color="#c9d6cd"/><stop offset=".84" stop-color="#eef4ed"/><stop offset="1" stop-color="#93a79c"/></radialGradient>
- <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#273b32" stroke-width=".4"/></pattern>
-</defs>
-<rect width="720" height="480" rx="12" fill="#0d1b16"/>
-<rect x="26" y="75" width="668" height="325" fill="url(#grid)"/>
-<g font-family="monospace" fill="#adc5b6">
- <text x="28" y="31" font-size="15">CLEARChart / SYNTHETIC IMAGING</text>
- <text x="28" y="55" font-size="13">{{.Patient.Name}}</text>
- <text x="692" y="31" text-anchor="end" font-size="12">{{.Reference}}</text>
- <text x="692" y="55" text-anchor="end" font-size="11">MOCK SERIES 0{{.Number}}</text>
-</g>
-<path d="M360 83V390M130 237H590" stroke="#819b88" stroke-opacity=".25" stroke-dasharray="4 7"/>
-<g transform="rotate({{.Angle}} 360 237)">
- <ellipse cx="360" cy="237" rx="157" ry="136" fill="url(#tissue)" stroke="#8a9e92" stroke-width="3"/>
- <ellipse cx="360" cy="237" rx="143" ry="124" fill="none" stroke="#52685b" stroke-width="9"/>
- {{if eq .Number 1}}
- <path d="M270 176C289 145 329 154 341 190C351 220 340 266 312 277C282 289 254 264 252 231C251 208 258 191 270 176Z" fill="url(#bone)"/>
- <path d="M391 165C428 151 461 181 466 218C472 257 443 286 412 274C386 264 374 239 373 211C372 190 378 173 391 165Z" fill="url(#bone)"/>
- <ellipse cx="306" cy="217" rx="17" ry="34" fill="#354d40"/>
- <ellipse cx="421" cy="220" rx="21" ry="36" fill="#354d40"/>
- {{else}}
- <path d="M286 182C316 162 402 158 434 183C458 202 451 247 424 263C394 281 313 280 286 257C261 235 259 201 286 182Z" fill="url(#bone)"/>
- <ellipse cx="359" cy="224" rx="59" ry="28" fill="#354d40"/>
- <ellipse cx="360" cy="306" rx="28" ry="19" fill="url(#bone)"/>
- {{end}}
-</g>
-<g fill="#8da999" font-family="monospace" font-size="11"><text x="47" y="236">R</text><text x="662" y="236">L</text><text x="356" y="94">A</text><text x="356" y="393">P</text></g>
-<path d="M580 310V365M574 310H586M574 321H580M574 332H580M574 343H580M574 354H580M574 365H586" stroke="#8da999"/>
-<rect x="25" y="417" width="670" height="40" rx="5" fill="#273d30"/>
-<text x="360" y="441" text-anchor="middle" font-family="monospace" font-size="12" fill="#dce7d5">ILLUSTRATIVE MOCK IMAGE · NOT A CLINICAL SCAN</text>
+{{define "mock_scan.svg"}}<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480" viewBox="0 0 720 480"
+    role="img" aria-labelledby="scan-title scan-description">
+    <title id="scan-title">Illustrative mock scan for {{.Patient.Name}}, series {{.Number}}</title>
+    <desc id="scan-description">Synthetic cross-section illustration for testing the ClearChart patient timeline. This
+        is not a clinical image.</desc>
+    <defs>
+        <radialGradient id="tissue">
+            <stop stop-color="#778d86" />
+            <stop offset=".65" stop-color="#45564f" />
+            <stop offset="1" stop-color="#192922" />
+        </radialGradient>
+        <radialGradient id="bone">
+            <stop stop-color="#86998f" />
+            <stop offset=".7" stop-color="#c9d6cd" />
+            <stop offset=".84" stop-color="#eef4ed" />
+            <stop offset="1" stop-color="#93a79c" />
+        </radialGradient>
+        <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M24 0H0V24" fill="none" stroke="#273b32" stroke-width=".4" />
+        </pattern>
+    </defs>
+    <rect width="720" height="480" rx="12" fill="#0d1b16" />
+    <rect x="26" y="75" width="668" height="325" fill="url(#grid)" />
+    <g font-family="monospace" fill="#adc5b6">
+        <text x="28" y="31" font-size="15">CLEARChart / SYNTHETIC IMAGING</text>
+        <text x="28" y="55" font-size="13">{{.Patient.Name}}</text>
+        <text x="692" y="31" text-anchor="end" font-size="12">{{.Reference}}</text>
+        <text x="692" y="55" text-anchor="end" font-size="11">MOCK SERIES 0{{.Number}}</text>
+    </g>
+    <path d="M360 83V390M130 237H590" stroke="#819b88" stroke-opacity=".25" stroke-dasharray="4 7" />
+    <g transform="rotate({{.Angle}} 360 237)">
+        <ellipse cx="360" cy="237" rx="157" ry="136" fill="url(#tissue)" stroke="#8a9e92" stroke-width="3" />
+        <ellipse cx="360" cy="237" rx="143" ry="124" fill="none" stroke="#52685b" stroke-width="9" />
+        {{if eq .Number 1}}
+        <path
+            d="M270 176C289 145 329 154 341 190C351 220 340 266 312 277C282 289 254 264 252 231C251 208 258 191 270 176Z"
+            fill="url(#bone)" />
+        <path
+            d="M391 165C428 151 461 181 466 218C472 257 443 286 412 274C386 264 374 239 373 211C372 190 378 173 391 165Z"
+            fill="url(#bone)" />
+        <ellipse cx="306" cy="217" rx="17" ry="34" fill="#354d40" />
+        <ellipse cx="421" cy="220" rx="21" ry="36" fill="#354d40" />
+        {{else}}
+        <path
+            d="M286 182C316 162 402 158 434 183C458 202 451 247 424 263C394 281 313 280 286 257C261 235 259 201 286 182Z"
+            fill="url(#bone)" />
+        <ellipse cx="359" cy="224" rx="59" ry="28" fill="#354d40" />
+        <ellipse cx="360" cy="306" rx="28" ry="19" fill="url(#bone)" />
+        {{end}}
+    </g>
+    <g fill="#8da999" font-family="monospace" font-size="11"><text x="47" y="236">R</text><text x="662"
+            y="236">L</text><text x="356" y="94">A</text><text x="356" y="393">P</text></g>
+    <path d="M580 310V365M574 310H586M574 321H580M574 332H580M574 343H580M574 354H580M574 365H586" stroke="#8da999" />
+    <rect x="25" y="417" width="670" height="40" rx="5" fill="#273d30" />
+    <text x="360" y="441" text-anchor="middle" font-family="monospace" font-size="12" fill="#dce7d5">ILLUSTRATIVE MOCK
+        IMAGE · NOT A CLINICAL SCAN</text>
 </svg>{{end}}
