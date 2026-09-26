@@ -1,7 +1,10 @@
 {{define "notification-badge"}}<span id="notification-badge" class="notif-badge-wrap" aria-label="{{if gt .Count 0}}{{.Count}} notifications{{else}}Notifications{{end}}">{{if gt .Count 0}}<span class="notif-dot">{{.Count}}</span>{{end}}</span>{{end}}
 
 {{define "notification-bell"}}
-<button class="notif-bell" id="notif-bell-btn" aria-label="Notifications{{if gt .NotificationCount 0}} ({{.NotificationCount}} new){{end}}" aria-expanded="false" aria-controls="notification-panel" data-on:click="$_notifOpen = !$_notifOpen; $_notifOpen && @get('/notifications', {contentType: 'form'})">
+<button class="notif-bell" id="notif-bell-btn"
+  aria-label="Notifications{{if gt .NotificationCount 0}} ({{.NotificationCount}} new){{end}}"
+  aria-expanded="false" aria-controls="notification-panel"
+  data-on:click="$_notifOpen = !$_notifOpen; $_notifOpen && @get('/notifications')">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
   {{template "notification-badge" (notificationPage .NotificationCount)}}
 </button>
