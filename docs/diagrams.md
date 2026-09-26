@@ -1,5 +1,7 @@
 # ClearChart diagrams
 
+> Historical reference: startup, demo login, memory-mode, onboarding auto-linking, and cleanup instructions below predate the Supabase Auth migration. Follow [the current handoff](README.md) and [authentication setup](authentication.md) for current behavior. Runtime fixtures are now test-only; existing database records and scan assets remain.
+
 [Back to handoff](README.md)
 
 The editable [architecture.drawio](architecture.drawio) contains four pages of uncompressed XML. Open it with draw.io Desktop, or use File → Open From → Device in the diagrams.net editor. The .drawio extension is the editor's XML format; see [the format documentation](https://www.drawio.com/docs/manual/editor/save-file-formats/).

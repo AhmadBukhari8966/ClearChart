@@ -1,5 +1,7 @@
 # ClearChart: models, storage, and a persistent database
 
+> Historical reference: startup, demo login, memory-mode, onboarding auto-linking, and cleanup instructions below predate the Supabase Auth migration. Follow [the current handoff](README.md) and [authentication setup](authentication.md) for current behavior. Runtime fixtures are now test-only; existing database records and scan assets remain.
+
 This reference describes the code in `D:\projects\ClearChart` as inspected on September 26, 2026. Start with the project's main walkthrough for request handling; this document explains everything declared in `models.go` and `store.go`, the SQL files, and how to enable persistence. No database was provisioned or modified while writing it.
 
 ## 1. The database integration already exists

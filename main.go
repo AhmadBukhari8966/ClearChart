@@ -24,17 +24,19 @@ import (
 var assets embed.FS
 
 type session struct {
-	ProfileID, Role, CSRF string
-	Expires               time.Time
+	AuthUserID, Email, ProfileID, Role, CSRF string
+	Expires                                  time.Time
 }
 
 type app struct {
-	store     Store
-	templates *template.Template
-	mode      string
-	mu        sync.Mutex
-	sessions  map[string]session
-	hub       *eventHub
+	store         Store
+	templates     *template.Template
+	mode          string
+	mu            sync.Mutex
+	sessions      map[string]session
+	hub           *eventHub
+	auth          AuthProvider
+	secureCookies bool
 }
 
 func newApp(store Store, mode string) (*app, error) {
@@ -70,7 +72,11 @@ func newApp(store Store, mode string) (*app, error) {
 func (a *app) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.home)
-	mux.HandleFunc("GET /demo/{role}", a.demo)
+	mux.HandleFunc("GET /login", a.authForm)
+	mux.HandleFunc("POST /login", a.login)
+	mux.HandleFunc("GET /signup", a.authForm)
+	mux.HandleFunc("POST /signup", a.signup)
+	mux.HandleFunc("POST /logout", a.logout)
 	mux.HandleFunc("GET /dashboard/{role}/{id}", a.dashboard)
 	mux.HandleFunc("GET /onboard/{role}", a.onboardForm)
 	mux.HandleFunc("POST /onboard/{role}", a.onboard)
@@ -116,30 +122,45 @@ func (a *app) page(w http.ResponseWriter, name string, data any) {
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	var store Store
-	mode := "Demo mode"
-
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		log.Fatal("Could not read .env. Check its formatting and permissions.")
 	}
-
-	if dsn := os.Getenv("DATABASE_URL"); dsn != "" {
-		connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		var err error
-		store, err = NewPostgresStore(connectCtx, dsn)
-		cancel()
-		if err != nil {
-			log.Fatal("Database connection failed. Check DATABASE_URL and apply schema.sql and seed.sql; connection details were not logged.")
-		}
-		mode = "Supabase connected"
-	} else {
-		store = NewMemoryStore()
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		log.Fatal("DATABASE_URL is required. Configure Supabase in .env or the process environment.")
 	}
-	defer store.Close()
-	a, err := newApp(store, mode)
+	projectURL, key, err := authConfiguration(dsn)
 	if err != nil {
 		log.Fatal(err)
+	}
+	auth, err := NewSupabaseAuth(projectURL, key)
+	if err != nil {
+		log.Fatal("Invalid Supabase Auth configuration. Check SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY.")
+	}
+	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	store, err := NewPostgresStore(connectCtx, dsn)
+	cancel()
+	if err != nil {
+		log.Fatal("Database connection failed. Check DATABASE_URL; connection details were not logged.")
+	}
+	defer store.Close()
+	checkCtx, checkCancel := context.WithTimeout(ctx, 5*time.Second)
+	_, err = store.ProfileByAuthUserID(checkCtx, "00000000-0000-0000-0000-000000000000")
+	checkCancel()
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		log.Fatal("Database schema is not ready. Apply migrations/001_auth_identity.sql to the existing database (schema.sql for a new database).")
+	}
+	a, err := newApp(store, "Supabase connected")
+	if err != nil {
+		log.Fatal(err)
+	}
+	a.auth = auth
+	switch strings.ToLower(os.Getenv("COOKIE_SECURE")) {
+	case "", "false":
+	case "true":
+		a.secureCookies = true
+	default:
+		log.Fatal("COOKIE_SECURE must be true or false.")
 	}
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -157,7 +178,7 @@ func main() {
 		defer cancel()
 		srv.Shutdown(shutdownCtx)
 	}()
-	log.Printf("ClearChart · %s · http://%s · synthetic demo data only", mode, srv.Addr)
+	log.Printf("ClearChart ? Supabase connected ? http://%s ? sign in to continue", srv.Addr)
 	if err = srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}

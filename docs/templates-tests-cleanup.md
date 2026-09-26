@@ -1,5 +1,7 @@
 # Templates, fixtures, tests, and cleanup
 
+> Historical reference: startup, demo login, memory-mode, onboarding auto-linking, and cleanup instructions below predate the Supabase Auth migration. Follow [the current handoff](README.md) and [authentication setup](authentication.md) for current behavior. Runtime fixtures are now test-only; existing database records and scan assets remain.
+
 This guide describes the code in **`D:\projects\ClearChart`**, the active project. `D:\projects\hackkathon` is an older, separate copy. Run commands and edit files in ClearChart so that the source being edited is the source being compiled. This inventory was reviewed on September 26, 2026.
 
 ## How the frontend is assembled

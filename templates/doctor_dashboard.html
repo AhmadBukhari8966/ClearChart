@@ -17,7 +17,7 @@
             <p class="eyebrow">BETTER TOGETHER. CLEARER FOR EVERYONE.</p>
             <h1>Good care starts <em>with connection.</em></h1>
             <p class="page-description">Welcome, {{.Profile.Name}}. Your patients' stories, in one place.</p>
-          </div><a class="button button-primary" href="#new-record">+ Add a care update</a>
+          </div>{{if .Patient.ID}}<a class="button button-primary" href="#new-record">+ Add a care update</a>{{end}}
         </div>
         <div class="doctor-summary-strip">
           <div><span class="summary-icon sage">{{template "icon-people"}}</span><strong>{{len
@@ -39,8 +39,7 @@
                   .Patients}}</span>
               </div>
               {{template "doctor-selected-patient" .}}
-              <p class="directory-hint" id="patient-directory-hint">Scroll to browse {{len .Patients}} patients, then
-                select a name to open their chart.</p>
+              <p class="directory-hint" id="patient-directory-hint">{{if .Patients}}Scroll to browse {{len .Patients}} patients, then select a name to open their chart.{{else}}Your workspace is ready. Ask your workspace administrator to connect the patients in your care.{{end}}</p>
               <div class="patient-selector" id="patient-directory" role="region" tabindex="0"
                 aria-label="Choose a patient" aria-describedby="patient-directory-hint">
                 {{range .Patients}}<a class="patient-option {{if eq .ID $.Patient.ID}}chosen{{end}}"
@@ -52,7 +51,7 @@
                     .Name}}</span><span class="patient-option-details"><strong>{{.Name}}</strong><small>{{if .DOB}}Born
                       {{.DOB}}{{end}}{{if .BloodType}} &middot; {{.BloodType}}{{end}}</small></span>
                   <span class="selected-check">{{template "icon-check"}}</span></a>{{else}}<p
-                  class="muted-copy">Your linked patients will appear here.</p>{{end}}
+                  class="muted-copy">Connected patients will appear here once your care team is assigned.</p>{{end}}
               </div>
             </section>
             {{template "doctor-record-form" .}}
@@ -66,7 +65,7 @@
               </div>
               <ul id="reports" class="uploads-list" tabindex="0" aria-label="Reports from connected patients">{{range
                 .Reports}}{{template "report" .}}{{end}}</ul>
-              <p class="form-hint">Scroll to browse shared reports. Demo reports track filenames only. No file contents
+              <p class="form-hint">Scroll to browse shared reports. Reports track filenames only. No file contents
                 are stored.</p>
             </section>
           </div>
@@ -78,7 +77,7 @@
               <div class="profile-facts">
                 <div><span>License</span><strong>{{.Profile.LicenseNum}}</strong></div>
                 <div><span>Email</span><strong>{{.Profile.Email}}</strong></div>
-              </div><span class="profile-status">{{template "icon-check"}} Demo provider profile</span>
+              </div><span class="profile-status">{{template "icon-check"}} Provider account</span>
             </section>
             <section class="panel biometrics-card" id="biometrics">
               <div class="section-heading">

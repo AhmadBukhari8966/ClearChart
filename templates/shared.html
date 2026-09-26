@@ -40,10 +40,10 @@
     {{end}}
   </nav>
   <div class="sidebar-bottom">
-    <div class="ownership-note"><span class="ownership-icon">{{template "icon-spark"}}</span><h3>A clearer kind of care.</h3><p>Your records. Your voice.<br>Everyone on the same page.</p><a href="{{if eq .Profile.Role "doctor"}}/demo/patient{{else}}/demo/doctor{{end}}">Explore {{if eq .Profile.Role "doctor"}}patient{{else}}provider{{end}} view {{template "icon-arrow"}}</a></div>
-    <a href="/onboard/patient" class="new-profile-link">Create a demo profile <span>↗</span></a>
+    <div class="ownership-note"><span class="ownership-icon">{{template "icon-spark"}}</span><h3>A clearer kind of care.</h3><p>Your records. Your voice.<br>Everyone on the same page.</p></div>
+    <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit" class="new-profile-link w-full bg-transparent border-0 text-left">Sign out <span aria-hidden="true">&rarr;</span></button></form>
     <div class="sidebar-profile"><span class="avatar avatar-sage">{{initials .Profile.Name}}</span><div><strong>{{.Profile.Name}}</strong><span>{{if eq .Profile.Role "doctor"}}Provider account{{else}}Patient account{{end}}</span></div><span class="profile-check">{{template "icon-check"}}</span></div>
-    <p class="sidebar-disclosure">DEMO WORKSPACE · SYNTHETIC DATA</p>
+    <p class="sidebar-disclosure">YOUR CONNECTED CARE WORKSPACE</p>
   </div>
 </aside>
 {{end}}
@@ -78,5 +78,5 @@
 {{end}}
 
 {{define "ai-summary"}}
-<section class="ai-card" id="ai-summary"><div class="ai-card-heading"><span class="ai-icon">{{template "icon-spark"}}</span><h2>A little more clarity</h2><span class="ai-label">AI ASSISTANCE</span></div><p class="ai-intro">Your care notes, in everyday language.</p><div class="ai-summary-copy">{{.Summary}}</div><div class="ai-disclosure">{{template "icon-spark"}} Demo summary · Rule-based, not medical advice</div></section>
+<section class="ai-card" id="ai-summary"><div class="ai-card-heading"><span class="ai-icon">{{template "icon-spark"}}</span><h2>A little more clarity</h2><span class="ai-label">AI ASSISTANCE</span></div><p class="ai-intro">Your care notes, in everyday language.</p><div class="ai-summary-copy">{{.Summary}}</div><div class="ai-disclosure">{{template "icon-spark"}} Automated summary · Rule-based, not medical advice</div></section>
 {{end}}

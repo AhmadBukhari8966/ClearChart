@@ -100,6 +100,12 @@ func postgresSnapshot(t *testing.T, db *sql.DB) string {
 	return result.String()
 }
 
+// Fixture lookup deliberately stays in tests; production account lookup uses
+// only the verified Supabase identity, never an email or a seeded UUID.
+func postgresFixtureByEmail(s *postgresStore, ctx context.Context, email string) (Profile, error) {
+	return scanProfile(s.db.QueryRowContext(ctx, `SELECT `+profileColumns+` FROM profiles p WHERE lower(p.email)=lower($1)`, email))
+}
+
 func TestPostgresGeneratedIDsAndRepeatableSeeds(t *testing.T) {
 	for _, existingIDs := range []bool{false, true} {
 		t.Run(fmt.Sprintf("existing_profile_ids_%t", existingIDs), func(t *testing.T) {
@@ -130,11 +136,11 @@ func TestPostgresGeneratedIDsAndRepeatableSeeds(t *testing.T) {
 				t.Fatal("seed rerun changed existing IDs, values or timestamps")
 			}
 			ctx := context.Background()
-			doctor, err := s.ProfileByEmail(ctx, demoDoctorEmail)
+			doctor, err := postgresFixtureByEmail(s, ctx, demoDoctorEmail)
 			if err != nil {
 				t.Fatal(err)
 			}
-			patient, err := s.ProfileByEmail(ctx, demoPatientEmail)
+			patient, err := postgresFixtureByEmail(s, ctx, demoPatientEmail)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -149,7 +155,7 @@ func TestPostgresGeneratedIDsAndRepeatableSeeds(t *testing.T) {
 			if err != nil || len(patients) != 302 {
 				t.Fatalf("doctor patients: %d, %v", len(patients), err)
 			}
-			zoe, err := s.ProfileByEmail(ctx, "zoe.thompson.300@example.com")
+			zoe, err := postgresFixtureByEmail(s, ctx, "zoe.thompson.300@example.com")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -178,7 +184,7 @@ func TestPostgresGeneratedIDsAndRepeatableSeeds(t *testing.T) {
 			t.Cleanup(a.hub.close)
 			cookies, current, location := demoSession(t, a, a.routes(), "doctor")
 			if current.ProfileID != doctor.ID || !strings.HasSuffix(location, doctor.ID) {
-				t.Fatal("demo login guessed a profile ID")
+				t.Fatal("test session used an incorrect stored profile ID")
 			}
 			page := serveRequest(a.routes(), httptest.NewRequest(http.MethodGet, location+"?patient="+zoe.ID, nil), cookies)
 			if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), zoe.ID+"/1.svg") {
@@ -194,11 +200,11 @@ func TestPostgresGeneratedIDsAndRepeatableSeeds(t *testing.T) {
 			}
 
 			callerID := "not-an-id-the-caller-must-not-assign"
-			createdPatient, err := s.CreateProfile(ctx, Profile{ID: callerID, Role: "patient", Name: "SQL Patient", Email: "new.patient@example.com", DOB: "1990-01-02", BloodType: "O+"})
+			createdPatient, err := s.CreateProfile(ctx, Profile{ID: callerID, AuthUserID: newID(), Role: "patient", Name: "SQL Patient", Email: "new.patient@example.com", DOB: "1990-01-02", BloodType: "O+"})
 			if err != nil {
 				t.Fatal(err)
 			}
-			createdDoctor, err := s.CreateProfile(ctx, Profile{ID: callerID, Role: "doctor", Name: "SQL Doctor", Email: "new.doctor@example.com", LicenseNum: "TEST-123", Specialization: "Primary care"})
+			createdDoctor, err := s.CreateProfile(ctx, Profile{ID: callerID, AuthUserID: newID(), Role: "doctor", Name: "SQL Doctor", Email: "new.doctor@example.com", LicenseNum: "TEST-123", Specialization: "Primary care"})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -213,12 +219,39 @@ func TestPostgresGeneratedIDsAndRepeatableSeeds(t *testing.T) {
 			checkID(createdDoctor.ID)
 			for _, pair := range [][2]string{{createdPatient.ID, doctor.ID}, {patient.ID, createdDoctor.ID}} {
 				ok, err := s.IsCareTeam(ctx, pair[0], pair[1])
-				if err != nil || !ok {
-					t.Fatalf("onboarding link used old ID: %v", err)
+				if err != nil || ok {
+					t.Fatalf("new profile unexpectedly received access to a seeded care team: %v", err)
 				}
 			}
-			if _, err := s.CreateProfile(ctx, Profile{Role: "patient", Name: "Duplicate", Email: "NEW.PATIENT@EXAMPLE.COM", DOB: "1990-01-02", BloodType: "O+"}); !errors.Is(err, ErrConflict) {
+			if _, err := s.CreateProfile(ctx, Profile{AuthUserID: newID(), Role: "patient", Name: "Duplicate", Email: "NEW.PATIENT@EXAMPLE.COM", DOB: "1990-01-02", BloodType: "O+"}); !errors.Is(err, ErrConflict) {
 				t.Fatalf("duplicate email: %v", err)
+			}
+			if createdPatient.ID == createdPatient.AuthUserID {
+				t.Fatal("profile ID must be distinct from its Supabase auth identity")
+			}
+			for _, created := range []Profile{createdPatient, createdDoctor} {
+				found, err := s.ProfileByAuthUserID(ctx, created.AuthUserID)
+				if err != nil || found.ID != created.ID {
+					t.Fatalf("auth identity mapping failed: %#v, %v", found, err)
+				}
+			}
+			duplicateAuth := createdPatient
+			duplicateAuth.Email = "another.patient@example.com"
+			if _, err := s.CreateProfile(ctx, duplicateAuth); !errors.Is(err, ErrConflict) {
+				t.Fatalf("duplicate auth identity: %v", err)
+			}
+			unverified := createdPatient
+			unverified.Email = "unverified@example.com"
+			unverified.AuthUserID = ""
+			if _, err := s.CreateProfile(ctx, unverified); err == nil {
+				t.Fatal("accepted an unverified profile")
+			}
+			if _, err := s.ProfileByAuthUserID(ctx, ""); !errors.Is(err, ErrNotFound) {
+				t.Fatalf("empty auth ID must not match an unclaimed seeded profile: %v", err)
+			}
+			// Administrators create care-team relationships explicitly after signup.
+			if _, err := s.db.ExecContext(ctx, `INSERT INTO care_team(patient_id,doctor_id) VALUES($1,$2)`, createdPatient.ID, doctor.ID); err != nil {
+				t.Fatal(err)
 			}
 			record, err := s.AddRecord(ctx, Record{ID: callerID, PatientID: createdPatient.ID, DoctorID: doctor.ID, Type: "note", Content: "Database-owned ID verification"})
 			if err != nil {
@@ -242,5 +275,46 @@ func TestPostgresGeneratedIDsAndRepeatableSeeds(t *testing.T) {
 				t.Fatalf("unlinked doctor: %v", err)
 			}
 		})
+	}
+}
+
+func TestPostgresAuthMigrationPreservesExistingData(t *testing.T) {
+	s := isolatedPostgres(t)
+	applyTestSQL(t, s.db, "schema.sql", "seed.sql", "seed_large.sql")
+	// Recreate the previous schema shape. Only this disposable test database
+	// loses a column, which has no values before accounts are onboarded.
+	if _, err := s.db.Exec("ALTER TABLE public.profiles DROP COLUMN auth_user_id"); err != nil {
+		t.Fatal(err)
+	}
+	var before, after string
+	query := `SELECT md5(string_agg((to_jsonb(p)-'auth_user_id')::text, '' ORDER BY p.id)) FROM profiles p`
+	if err := s.db.QueryRow(query).Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	applyTestSQL(t, s.db, "migrations/001_auth_identity.sql", "migrations/001_auth_identity.sql")
+	if err := s.db.QueryRow(query).Scan(&after); err != nil {
+		t.Fatal(err)
+	}
+	if before != after {
+		t.Fatal("auth migration changed existing profile data")
+	}
+	var claimed int
+	if err := s.db.QueryRow("SELECT count(*) FROM profiles WHERE auth_user_id IS NOT NULL").Scan(&claimed); err != nil || claimed != 0 {
+		t.Fatalf("migration claimed seeded profiles: count=%d, error=%v", claimed, err)
+	}
+	// A deliberate administrator association survives reapplying the schema
+	// and seeds; no email match in the login path performs this association.
+	authID := newID()
+	if _, err := s.db.Exec("UPDATE profiles SET auth_user_id=$1 WHERE lower(email)=lower($2)", authID, demoDoctorEmail); err != nil {
+		t.Fatal(err)
+	}
+	beforeAll := postgresSnapshot(t, s.db)
+	applyTestSQL(t, s.db, "schema.sql", "seed.sql", "seed_large.sql")
+	if afterAll := postgresSnapshot(t, s.db); beforeAll != afterAll {
+		t.Fatal("reapplying schema and seeds changed stored account mappings or records")
+	}
+	profile, err := s.ProfileByAuthUserID(context.Background(), authID)
+	if err != nil || profile.Email != demoDoctorEmail {
+		t.Fatalf("explicit seeded account association was not preserved: %#v, %v", profile, err)
 	}
 }

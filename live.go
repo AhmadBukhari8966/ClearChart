@@ -145,6 +145,9 @@ func (a *app) events(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 		}
+		if current, ok := a.sessionFor(r, role); !ok || current.ProfileID != s.ProfileID {
+			return
+		}
 		d, err = a.dashboardData(r.Context(), s, patientID, filter)
 		if err != nil {
 			if err = writeStream(w, func() { fmt.Fprint(w, ": refresh unavailable\n\n") }); err != nil {

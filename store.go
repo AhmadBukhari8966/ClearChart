@@ -5,9 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/lib/pq"
@@ -16,332 +14,8 @@ import (
 var (
 	ErrNotFound  = errors.New("not found")
 	ErrForbidden = errors.New("not part of this patient's care team")
-	ErrConflict  = errors.New("a profile with this email already exists")
+	ErrConflict  = errors.New("a profile for this email or account already exists")
 )
-
-type memoryStore struct {
-	mu         sync.RWMutex
-	profiles   map[string]Profile
-	care       map[string]map[string]bool
-	records    []Record
-	uploads    []Upload
-	healing    []Healing
-	biometrics map[string]Biometric
-}
-
-// NewMemoryStore is an explicitly ephemeral, seeded demo. Database connection
-// failures never fall back to it silently.
-func NewMemoryStore() Store {
-	s := &memoryStore{profiles: map[string]Profile{}, care: map[string]map[string]bool{}, biometrics: map[string]Biometric{}}
-	now := time.Now().UTC()
-	doctor2 := "00000000-0000-4000-8000-000000000002"
-	patient2 := "00000000-0000-4000-8000-000000000102"
-	patient3 := "00000000-0000-4000-8000-000000000103"
-	for _, p := range []Profile{
-		{ID: demoDoctorID, Role: "doctor", Name: "Dr. Sarah Chen", Email: "sarah.chen@example.com", LicenseNum: "DEMO-ORTHO-2048", Specialization: "Orthopedics"},
-		{ID: doctor2, Role: "doctor", Name: "Dr. James Wilson", Email: "james.wilson@example.com", LicenseNum: "DEMO-PCP-1024", Specialization: "Primary care"},
-		{ID: demoPatientID, Role: "patient", Name: "Alex Morgan", Email: "alex.morgan@example.com", DOB: "1994-06-15", BloodType: "O+"},
-		{ID: patient2, Role: "patient", Name: "Jordan Lee", Email: "jordan.lee@example.com", DOB: "1987-03-22", BloodType: "A+"},
-		{ID: patient3, Role: "patient", Name: "Taylor Brooks", Email: "taylor.brooks@example.com", DOB: "2000-11-08", BloodType: "B+"},
-	} {
-		s.profiles[p.ID] = p
-	}
-	s.care[demoPatientID] = map[string]bool{demoDoctorID: true, doctor2: true}
-	s.care[patient2] = map[string]bool{demoDoctorID: true}
-	s.care[patient3] = map[string]bool{doctor2: true}
-	type seedRecord struct {
-		patient, doctor, kind, content, image string
-		hours                                 int
-	}
-	for i, r := range []seedRecord{
-		{demoPatientID, demoDoctorID, "note", "Two-week knee recovery review: incision is healing well. Swelling has reduced and range of motion is improving. Continue the rehabilitation plan and follow up in two weeks.", "", 2},
-		{demoPatientID, demoDoctorID, "prescription", "Demo medication plan: acetaminophen as directed on the discharge instructions, only when needed. Review all medications with your care team.", "", 26},
-		{demoPatientID, demoDoctorID, "imaging", "Follow-up knee imaging: postoperative alignment is maintained. No new concerning findings in this simulated study.", "/static/ct-scan.svg", 50},
-		{demoPatientID, doctor2, "note", "Recovery check-in: sleep is improving and Alex is walking more comfortably with support. Keep sharing any changes with the care team.", "", 74},
-		{demoPatientID, demoDoctorID, "note", "Initial postoperative review: begin the agreed gentle movement plan with your physiotherapist. Expected swelling is present; the wound looks clean.", "", 170},
-		{patient2, demoDoctorID, "note", "Shoulder follow-up: mobility is improving with physiotherapy. Continue the agreed exercise plan and review next month.", "", 5},
-		{patient2, demoDoctorID, "prescription", "Demo prescription review: continue current care plan. Medication questions will be reviewed at the next appointment.", "", 52},
-		{patient2, demoDoctorID, "imaging", "Simulated shoulder imaging reviewed. Findings are consistent with the established recovery plan.", "/static/ct-scan.svg", 100},
-		{patient3, doctor2, "note", "Ankle recovery check: less swelling reported and daily activity is gradually increasing. Follow up as scheduled.", "", 8},
-		{patient3, doctor2, "prescription", "Demo medication reconciliation completed. No changes to the discharge medication plan.", "", 76},
-		{patient3, doctor2, "imaging", "Simulated ankle imaging reviewed with the patient. Recovery remains on the expected course.", "/static/ct-scan.svg", 124},
-	} {
-		s.records = append(s.records, Record{ID: fmt.Sprintf("10000000-0000-4000-8000-%012d", i+1), PatientID: r.patient, DoctorID: r.doctor, Type: r.kind, Content: r.content, ImageURL: r.image, DoctorName: s.profiles[r.doctor].Name, PatientName: s.profiles[r.patient].Name, Timestamp: now.Add(-time.Duration(r.hours) * time.Hour)})
-	}
-	for i, u := range []struct {
-		patient, name string
-		hours         int
-	}{
-		{demoPatientID, "physiotherapy-progress.pdf", 4}, {demoPatientID, "discharge-summary.pdf", 168}, {patient2, "shoulder-exercises.pdf", 12}, {patient3, "ankle-recovery-notes.pdf", 20},
-	} {
-		s.uploads = append(s.uploads, Upload{ID: fmt.Sprintf("20000000-0000-4000-8000-%012d", i+1), PatientID: u.patient, FileName: u.name, PatientName: s.profiles[u.patient].Name, Timestamp: now.Add(-time.Duration(u.hours) * time.Hour)})
-	}
-	for i, h := range []struct {
-		patient, kind string
-		value, hours  int
-	}{
-		{demoPatientID, "pain", 6, 168}, {demoPatientID, "mobility", 3, 168}, {demoPatientID, "energy", 4, 168},
-		{demoPatientID, "pain", 3, 3}, {demoPatientID, "mobility", 7, 3}, {demoPatientID, "energy", 8, 3},
-		{patient2, "pain", 2, 6}, {patient2, "mobility", 8, 6}, {patient2, "energy", 7, 6},
-		{patient3, "pain", 4, 9}, {patient3, "mobility", 6, 9}, {patient3, "energy", 7, 9},
-	} {
-		s.healing = append(s.healing, Healing{ID: fmt.Sprintf("30000000-0000-4000-8000-%012d", i+1), PatientID: h.patient, StatusType: h.kind, Value: h.value, Timestamp: now.Add(-time.Duration(h.hours) * time.Hour)})
-	}
-	s.biometrics[demoDoctorID] = Biometric{DoctorID: demoDoctorID, HeartRate: 64, SleepHours: 7.6, Timestamp: now.Add(-30 * time.Minute)}
-	s.biometrics[doctor2] = Biometric{DoctorID: doctor2, HeartRate: 68, SleepHours: 7.2, Timestamp: now.Add(-45 * time.Minute)}
-	addBulkPatients(s, now)
-	return s
-}
-
-func (s *memoryStore) Close() error { return nil }
-func (s *memoryStore) Profile(ctx context.Context, id string) (Profile, error) {
-	if err := ctx.Err(); err != nil {
-		return Profile{}, err
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	p, ok := s.profiles[id]
-	if !ok {
-		return Profile{}, ErrNotFound
-	}
-	return p, nil
-}
-func (s *memoryStore) ProfileByEmail(ctx context.Context, email string) (Profile, error) {
-	if err := ctx.Err(); err != nil {
-		return Profile{}, err
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	for _, p := range s.profiles {
-		if strings.EqualFold(p.Email, email) {
-			return p, nil
-		}
-	}
-	return Profile{}, ErrNotFound
-}
-func (s *memoryStore) Profiles(ctx context.Context, role string) ([]Profile, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	var out []Profile
-	for _, p := range s.profiles {
-		if p.Role == role {
-			out = append(out, p)
-		}
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out, nil
-}
-func (s *memoryStore) CareTeam(ctx context.Context, patient string) ([]Profile, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	var out []Profile
-	for doctor := range s.care[patient] {
-		out = append(out, s.profiles[doctor])
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out, nil
-}
-func (s *memoryStore) Patients(ctx context.Context, doctor string) ([]Profile, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	var out []Profile
-	for patient, doctors := range s.care {
-		if doctors[doctor] {
-			out = append(out, s.profiles[patient])
-		}
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out, nil
-}
-func (s *memoryStore) Records(ctx context.Context, patient string) ([]Record, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	var out []Record
-	for _, r := range s.records {
-		if r.PatientID == patient {
-			out = append(out, r)
-		}
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Timestamp.After(out[j].Timestamp) })
-	return out, nil
-}
-func (s *memoryStore) Uploads(ctx context.Context, patient string) ([]Upload, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	var out []Upload
-	for _, u := range s.uploads {
-		if u.PatientID == patient {
-			out = append(out, u)
-		}
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Timestamp.After(out[j].Timestamp) })
-	return out, nil
-}
-
-// Reports collects a doctor's reports in one pass, rather than one lookup per
-// patient. The same operation uses a single SQL join in the PostgreSQL store.
-func (s *memoryStore) Reports(ctx context.Context, doctor string) ([]Upload, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	var out []Upload
-	for _, u := range s.uploads {
-		if s.care[u.PatientID][doctor] {
-			out = append(out, u)
-		}
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Timestamp.After(out[j].Timestamp) })
-	return out, nil
-}
-
-func (s *memoryStore) Healing(ctx context.Context, patient string) ([]Healing, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	latest := map[string]Healing{}
-	for _, h := range s.healing {
-		if h.PatientID == patient {
-			prev, ok := latest[h.StatusType]
-			if !ok || h.Timestamp.After(prev.Timestamp) {
-				latest[h.StatusType] = h
-			}
-		}
-	}
-	var out []Healing
-	for _, h := range latest {
-		out = append(out, h)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].StatusType < out[j].StatusType })
-	return out, nil
-}
-func (s *memoryStore) Biometrics(ctx context.Context, doctor string) (Biometric, error) {
-	if err := ctx.Err(); err != nil {
-		return Biometric{}, err
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	b, ok := s.biometrics[doctor]
-	if !ok {
-		return Biometric{}, ErrNotFound
-	}
-	return b, nil
-}
-func (s *memoryStore) IsCareTeam(ctx context.Context, patient, doctor string) (bool, error) {
-	if err := ctx.Err(); err != nil {
-		return false, err
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.care[patient][doctor], nil
-}
-func (s *memoryStore) CreateProfile(ctx context.Context, p Profile) (Profile, error) {
-	if err := ctx.Err(); err != nil {
-		return Profile{}, err
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, existing := range s.profiles {
-		if strings.EqualFold(existing.Email, p.Email) {
-			return Profile{}, ErrConflict
-		}
-	}
-	if p.Role != "doctor" && p.Role != "patient" {
-		return Profile{}, errors.New("invalid role")
-	}
-	p.ID = newID()
-	s.profiles[p.ID] = p
-	// The seed email identifies a fixture; its storage-generated ID is opaque.
-	if p.Role == "patient" {
-		s.care[p.ID] = map[string]bool{}
-		for _, counterpart := range s.profiles {
-			if counterpart.Role == "doctor" && strings.EqualFold(counterpart.Email, demoDoctorEmail) {
-				s.care[p.ID][counterpart.ID] = true
-			}
-		}
-	} else {
-		for _, counterpart := range s.profiles {
-			if counterpart.Role == "patient" && strings.EqualFold(counterpart.Email, demoPatientEmail) {
-				if s.care[counterpart.ID] == nil {
-					s.care[counterpart.ID] = map[string]bool{}
-				}
-				s.care[counterpart.ID][p.ID] = true
-			}
-		}
-	}
-	return p, nil
-}
-func (s *memoryStore) AddRecord(ctx context.Context, r Record) (Record, error) {
-	if err := ctx.Err(); err != nil {
-		return Record{}, err
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if !s.care[r.PatientID][r.DoctorID] {
-		return Record{}, ErrForbidden
-	}
-	if r.Type != "note" && r.Type != "prescription" && r.Type != "imaging" {
-		return Record{}, errors.New("invalid record type")
-	}
-	r.ID = newID()
-	r.Timestamp = time.Now().UTC()
-	r.DoctorName = s.profiles[r.DoctorID].Name
-	r.PatientName = s.profiles[r.PatientID].Name
-	s.records = append(s.records, r)
-	return r, nil
-}
-func (s *memoryStore) AddUpload(ctx context.Context, u Upload) (Upload, error) {
-	if err := ctx.Err(); err != nil {
-		return Upload{}, err
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	p, ok := s.profiles[u.PatientID]
-	if !ok || p.Role != "patient" {
-		return Upload{}, ErrNotFound
-	}
-	u.ID = newID()
-	u.Timestamp = time.Now().UTC()
-	u.PatientName = p.Name
-	s.uploads = append(s.uploads, u)
-	return u, nil
-}
-func (s *memoryStore) AddHealing(ctx context.Context, h Healing) (Healing, error) {
-	if err := ctx.Err(); err != nil {
-		return Healing{}, err
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	p, ok := s.profiles[h.PatientID]
-	if !ok || p.Role != "patient" {
-		return Healing{}, ErrNotFound
-	}
-	if h.Value < 1 || h.Value > 10 {
-		return Healing{}, errors.New("healing value must be 1–10")
-	}
-	h.ID = newID()
-	h.Timestamp = time.Now().UTC()
-	s.healing = append(s.healing, h)
-	return h, nil
-}
 
 type postgresStore struct{ db *sql.DB }
 
@@ -365,7 +39,7 @@ func storageError(err error) error {
 		return ErrNotFound
 	}
 	var pgErr *pq.Error
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" && strings.Contains(pgErr.Constraint, "email") {
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" && (strings.Contains(pgErr.Constraint, "email") || strings.Contains(pgErr.Constraint, "auth_user_id")) {
 		return ErrConflict
 	}
 	return err
@@ -373,18 +47,21 @@ func storageError(err error) error {
 
 type rowScanner interface{ Scan(...any) error }
 
-const profileColumns = `p.id::text,p.role,p.name,p.email,COALESCE(p.license_num,''),COALESCE(p.specialization,''),COALESCE(to_char(p.dob,'YYYY-MM-DD'),''),COALESCE(p.blood_type,'')`
+const profileColumns = `p.id::text,COALESCE(p.auth_user_id::text,''),p.role,p.name,p.email,COALESCE(p.license_num,''),COALESCE(p.specialization,''),COALESCE(to_char(p.dob,'YYYY-MM-DD'),''),COALESCE(p.blood_type,'')`
 
 func scanProfile(row rowScanner) (Profile, error) {
 	var p Profile
-	err := row.Scan(&p.ID, &p.Role, &p.Name, &p.Email, &p.LicenseNum, &p.Specialization, &p.DOB, &p.BloodType)
+	err := row.Scan(&p.ID, &p.AuthUserID, &p.Role, &p.Name, &p.Email, &p.LicenseNum, &p.Specialization, &p.DOB, &p.BloodType)
 	return p, storageError(err)
 }
 func (s *postgresStore) Profile(ctx context.Context, id string) (Profile, error) {
 	return scanProfile(s.db.QueryRowContext(ctx, `SELECT `+profileColumns+` FROM profiles p WHERE p.id=$1`, id))
 }
-func (s *postgresStore) ProfileByEmail(ctx context.Context, email string) (Profile, error) {
-	return scanProfile(s.db.QueryRowContext(ctx, `SELECT `+profileColumns+` FROM profiles p WHERE lower(p.email)=lower($1)`, email))
+func (s *postgresStore) ProfileByAuthUserID(ctx context.Context, authUserID string) (Profile, error) {
+	if authUserID == "" {
+		return Profile{}, ErrNotFound
+	}
+	return scanProfile(s.db.QueryRowContext(ctx, `SELECT `+profileColumns+` FROM profiles p WHERE p.auth_user_id=$1`, authUserID))
 }
 func (s *postgresStore) queryProfiles(ctx context.Context, query string, arg string) ([]Profile, error) {
 	rows, err := s.db.QueryContext(ctx, query, arg)
@@ -401,9 +78,6 @@ func (s *postgresStore) queryProfiles(ctx context.Context, query string, arg str
 		out = append(out, p)
 	}
 	return out, rows.Err()
-}
-func (s *postgresStore) Profiles(ctx context.Context, role string) ([]Profile, error) {
-	return s.queryProfiles(ctx, `SELECT `+profileColumns+` FROM profiles p WHERE p.role=$1 ORDER BY p.name`, role)
 }
 func (s *postgresStore) CareTeam(ctx context.Context, patient string) ([]Profile, error) {
 	return s.queryProfiles(ctx, `SELECT `+profileColumns+` FROM profiles p JOIN care_team c ON c.doctor_id=p.id WHERE c.patient_id=$1 ORDER BY p.name`, patient)
@@ -508,30 +182,16 @@ func (s *postgresStore) IsCareTeam(ctx context.Context, patient, doctor string) 
 	return ok, err
 }
 func (s *postgresStore) CreateProfile(ctx context.Context, p Profile) (Profile, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return Profile{}, err
+	if p.AuthUserID == "" {
+		return Profile{}, errors.New("authenticated user ID is required")
 	}
-	defer tx.Rollback()
-	// Omit id so PostgreSQL applies profiles.id's DEFAULT gen_random_uuid().
-	// The returned ID, not a caller-supplied value, is used for relationships.
-	err = tx.QueryRowContext(ctx, `INSERT INTO profiles(role,name,email,license_num,specialization,dob,blood_type)
- VALUES($1,$2,$3,NULLIF($4,''),NULLIF($5,''),NULLIF($6,'')::date,NULLIF($7,''))
- RETURNING id::text`, p.Role, p.Name, p.Email, p.LicenseNum, p.Specialization, p.DOB, p.BloodType).Scan(&p.ID)
+	// PostgreSQL generates the profile ID. AuthUserID comes from the verified
+	// Supabase identity; onboarding cannot claim profiles by email alone.
+	err := s.db.QueryRowContext(ctx, `INSERT INTO profiles(auth_user_id,role,name,email,license_num,specialization,dob,blood_type)
+ VALUES($1,$2,$3,$4,NULLIF($5,''),NULLIF($6,''),NULLIF($7,'')::date,NULLIF($8,''))
+ RETURNING id::text`, p.AuthUserID, p.Role, p.Name, p.Email, p.LicenseNum, p.Specialization, p.DOB, p.BloodType).Scan(&p.ID)
 	if err != nil {
 		return Profile{}, storageError(err)
-	}
-	// Demo onboarding still links to the seeded counterpart, resolved by email.
-	if p.Role == "patient" {
-		_, err = tx.ExecContext(ctx, `INSERT INTO care_team(patient_id,doctor_id) SELECT $1,id FROM profiles WHERE lower(email)=lower($2) AND role='doctor' ON CONFLICT DO NOTHING`, p.ID, demoDoctorEmail)
-	} else {
-		_, err = tx.ExecContext(ctx, `INSERT INTO care_team(patient_id,doctor_id) SELECT id,$1 FROM profiles WHERE lower(email)=lower($2) AND role='patient' ON CONFLICT DO NOTHING`, p.ID, demoPatientEmail)
-	}
-	if err != nil {
-		return Profile{}, storageError(err)
-	}
-	if err = tx.Commit(); err != nil {
-		return Profile{}, err
 	}
 	return p, nil
 }

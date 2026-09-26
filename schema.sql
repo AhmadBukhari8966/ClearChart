@@ -3,12 +3,14 @@
 -- The Go server uses a privileged PostgreSQL connection (DATABASE_URL).
 -- RLS is enabled with no browser policies: anonymous/authenticated Supabase
 -- clients cannot read or mutate these tables. Do not expose DATABASE_URL.
--- Demo role selection in the app is not production identity verification.
+-- Authentication uses Supabase Auth. Seeded profiles remain unclaimed until
+-- an administrator explicitly associates an auth_user_id.
 
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS public.profiles (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    auth_user_id uuid,
     role text NOT NULL CHECK (role IN ('doctor', 'patient')),
     name text NOT NULL CHECK (length(btrim(name)) BETWEEN 2 AND 120),
     email text NOT NULL CHECK (length(email) BETWEEN 3 AND 254),
@@ -23,6 +25,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
         OR (role = 'patient' AND dob IS NOT NULL AND blood_type IS NOT NULL)
     )
 );
+-- Also upgrade existing installations without changing their seeded data.
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS auth_user_id uuid;
+CREATE UNIQUE INDEX IF NOT EXISTS profiles_auth_user_id_unique ON public.profiles (auth_user_id);
+COMMENT ON COLUMN public.profiles.auth_user_id IS 'Verified Supabase Auth user ID. Null for unclaimed seeded profiles. Assigned by the server after authentication.';
 CREATE UNIQUE INDEX IF NOT EXISTS profiles_email_unique ON public.profiles (lower(email));
 CREATE INDEX IF NOT EXISTS profiles_role_idx ON public.profiles (role);
 

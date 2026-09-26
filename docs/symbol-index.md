@@ -1,3 +1,5 @@
+> Authentication update: this older declaration inventory includes removed demo entry points. See [the current authentication reference](authentication.md#authentication-code-reference) and [current startup walkthrough](README.md). Memory-store and bulk-seed declarations now exist only in test files.
+
 # Named Go declaration index
 
 [Back to handoff](README.md)

@@ -17,7 +17,7 @@ import (
 
 func testApp(t *testing.T) (*app, http.Handler) {
 	t.Helper()
-	a, err := newApp(NewMemoryStore(), "Demo mode")
+	a, err := newApp(NewMemoryStore(), "Test database")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,26 +25,41 @@ func testApp(t *testing.T) (*app, http.Handler) {
 	return a, a.routes()
 }
 
+// fixtureProfile is test-only: runtime authentication never looks up identities by email.
+func fixtureProfile(t *testing.T, store Store, role string) Profile {
+	t.Helper()
+	email := demoPatientEmail
+	if role == "doctor" {
+		email = demoDoctorEmail
+	}
+	var p Profile
+	var err error
+	switch s := store.(type) {
+	case *memoryStore:
+		p, err = s.ProfileByEmail(context.Background(), email)
+	case *postgresStore:
+		p, err = scanProfile(s.db.QueryRowContext(context.Background(), "SELECT "+profileColumns+" FROM profiles p WHERE lower(p.email)=lower($1)", email))
+	default:
+		t.Fatal("unsupported test store")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
 func demoSession(t *testing.T, a *app, handler http.Handler, role string) ([]*http.Cookie, session, string) {
 	t.Helper()
+	p := fixtureProfile(t, a.store, role)
 	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/demo/"+role, nil))
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("demo %s: status %d: %s", role, w.Code, w.Body.String())
-	}
+	s := a.issueSession(w, httptest.NewRequest(http.MethodGet, "/", nil), session{AuthUserID: p.AuthUserID, Email: p.Email, ProfileID: p.ID, Role: p.Role, Expires: time.Now().Add(time.Hour)})
 	cookies := w.Result().Cookies()
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	for _, c := range cookies {
-		r.AddCookie(c)
 		if !c.HttpOnly || c.SameSite != http.SameSiteLaxMode {
-			t.Errorf("demo cookie must be HTTP-only and SameSite=Lax: %+v", c)
+			t.Fatal("session cookie flags missing")
 		}
 	}
-	s, ok := a.sessionFor(r, role)
-	if !ok {
-		t.Fatal("demo response did not create a usable session")
-	}
-	return cookies, s, w.Header().Get("Location")
+	return cookies, s, sessionDestination(s)
 }
 
 func serveRequest(handler http.Handler, r *http.Request, cookies []*http.Cookie) *httptest.ResponseRecorder {
@@ -74,20 +89,20 @@ func assertSSE(t *testing.T, w *httptest.ResponseRecorder, selector, mode string
 	}
 }
 
-func TestDashboardsRenderAndDemoSessionsCoexist(t *testing.T) {
+func TestDashboardsRenderForSeparateAccounts(t *testing.T) {
 	a, handler := testApp(t)
-	var cookies []*http.Cookie
+	cookies := make(map[string][]*http.Cookie)
 	paths := make(map[string]string)
 	for _, role := range []string{"patient", "doctor"} {
 		roleCookies, _, path := demoSession(t, a, handler, role)
-		cookies = append(cookies, roleCookies...)
+		cookies[role] = roleCookies
 		paths[role] = path
 	}
 	scripts := regexp.MustCompile(`(?is)<script\b([^>]*)>(.*?)</script>`)
 	inlineHandlers := regexp.MustCompile(`(?i)\son[a-z]+\s*=`)
 	for _, role := range []string{"patient", "doctor"} {
 		t.Run(role, func(t *testing.T) {
-			w := serveRequest(handler, httptest.NewRequest(http.MethodGet, paths[role], nil), cookies)
+			w := serveRequest(handler, httptest.NewRequest(http.MethodGet, paths[role], nil), cookies[role])
 			if w.Code != http.StatusOK {
 				t.Fatalf("dashboard: status %d: %s", w.Code, w.Body.String())
 			}
@@ -115,11 +130,11 @@ func TestDashboardsRenderAndDemoSessionsCoexist(t *testing.T) {
 		})
 	}
 	foreign := "/dashboard/patient/00000000-0000-4000-8000-000000000102"
-	w := serveRequest(handler, httptest.NewRequest(http.MethodGet, foreign, nil), cookies)
+	w := serveRequest(handler, httptest.NewRequest(http.MethodGet, foreign, nil), cookies["patient"])
 	if w.Code != http.StatusForbidden {
 		t.Errorf("foreign patient dashboard returned %d, want 403", w.Code)
 	}
-	w = serveRequest(handler, httptest.NewRequest(http.MethodGet, paths["doctor"]+"?patient=00000000-0000-4000-8000-000000000103", nil), cookies)
+	w = serveRequest(handler, httptest.NewRequest(http.MethodGet, paths["doctor"]+"?patient=00000000-0000-4000-8000-000000000103", nil), cookies["doctor"])
 	if w.Code != http.StatusForbidden {
 		t.Errorf("unlinked patient dashboard returned %d, want 403", w.Code)
 	}
@@ -290,22 +305,17 @@ func TestOnboardingCreatesRoleSpecificProfiles(t *testing.T) {
 	for _, role := range []string{"patient", "doctor"} {
 		t.Run(role, func(t *testing.T) {
 			a, handler := testApp(t)
-			get := serveRequest(handler, httptest.NewRequest(http.MethodGet, "/onboard/"+role, nil), nil)
+			pending := httptest.NewRecorder()
+			identity := newID()
+			loggedIn := a.issueSession(pending, httptest.NewRequest(http.MethodGet, "/", nil), session{AuthUserID: identity, Email: role + ".test@example.com", Expires: time.Now().Add(time.Hour)})
+			cookies := pending.Result().Cookies()
+			get := serveRequest(handler, httptest.NewRequest(http.MethodGet, "/onboard/"+role, nil), cookies)
 			if get.Code != http.StatusOK {
 				t.Fatalf("onboard form: %d: %s", get.Code, get.Body.String())
 			}
-			cookies := get.Result().Cookies()
-			var csrf string
-			for _, c := range cookies {
-				if c.Name == "clearchart_onboard" {
-					csrf = c.Value
-				}
-			}
-			if csrf == "" {
-				t.Fatal("onboarding form did not set a CSRF cookie")
-			}
+			csrf := loggedIn.CSRF
 			form := url.Values{
-				"csrf": {csrf}, "name": {"Demo <Tester>"}, "email": {role + ".test@example.com"},
+				"csrf": {csrf}, "name": {"Demo <Tester>"}, "email": {"forged@example.com"}, "auth_user_id": {"forged"},
 				"dob": {"1990-01-02"}, "blood_type": {"O+"}, "license_num": {"DEMO-123"}, "specialization": {"Primary care"},
 			}
 			w := postForm(handler, "/onboard/"+role, form, cookies)
@@ -322,7 +332,7 @@ func TestOnboardingCreatesRoleSpecificProfiles(t *testing.T) {
 				t.Fatal("onboarding did not sign into the new role")
 			}
 			profile, err := a.store.Profile(context.Background(), s.ProfileID)
-			if err != nil || profile.Role != role || profile.Email != role+".test@example.com" {
+			if err != nil || profile.Role != role || profile.Email != role+".test@example.com" || profile.AuthUserID != identity {
 				t.Fatalf("wrong new profile: %+v, %v", profile, err)
 			}
 			if role == "doctor" {
@@ -330,16 +340,16 @@ func TestOnboardingCreatesRoleSpecificProfiles(t *testing.T) {
 					t.Fatal("doctor profile fields were not scoped to the role")
 				}
 				linked, err := a.store.IsCareTeam(context.Background(), demoPatientID, profile.ID)
-				if err != nil || !linked {
-					t.Fatal("new doctor was not connected to the demo patient")
+				if err != nil || linked {
+					t.Fatal("new doctor must not gain access to a seeded patient automatically")
 				}
 			} else {
 				if profile.DOB != "1990-01-02" || profile.BloodType != "O+" || profile.LicenseNum != "" || profile.Specialization != "" {
 					t.Fatal("patient profile fields were not scoped to the role")
 				}
 				linked, err := a.store.IsCareTeam(context.Background(), profile.ID, demoDoctorID)
-				if err != nil || !linked {
-					t.Fatal("new patient was not connected to the demo doctor")
+				if err != nil || linked {
+					t.Fatal("new patient must not be shared with a seeded doctor automatically")
 				}
 			}
 			page := serveRequest(handler, httptest.NewRequest(http.MethodGet, "/dashboard/"+role+"/"+profile.ID, nil), w.Result().Cookies())

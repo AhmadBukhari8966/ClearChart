@@ -1,5 +1,7 @@
 # ClearChart runtime reference
 
+> Historical reference: startup, demo login, memory-mode, onboarding auto-linking, and cleanup instructions below predate the Supabase Auth migration. Follow [the current handoff](README.md) and [authentication setup](authentication.md) for current behavior. Runtime fixtures are now test-only; existing database records and scan assets remain.
+
 [Start here: project handoff and reading order](README.md) · [Editable architecture diagram](architecture.drawio) · [Architecture overview](architecture.svg)
 
 This guide describes the code saved in `D:\projects\ClearChart`, concentrating on [main.go](../main.go), [handlers.go](../handlers.go), and [live.go](../live.go). Read it in order to follow the program from `main()` to a browser update. The separate model, storage, template, and database references explain the components these runtime files call.

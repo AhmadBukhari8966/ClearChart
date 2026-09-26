@@ -8,7 +8,6 @@ import (
 	"html"
 	"io"
 	"net/http"
-	"net/mail"
 	"net/url"
 	"path"
 	"strconv"
@@ -19,67 +18,6 @@ import (
 
 func validRole(s string) bool { return s == "patient" || s == "doctor" }
 func validType(s string) bool { return s == "note" || s == "prescription" || s == "imaging" }
-
-// Demo identities are deliberately selectable. Cookies isolate the two roles so
-// judges can use patient and doctor tabs at the same time. This is not real login.
-func (a *app) setSession(w http.ResponseWriter, r *http.Request, p Profile) session {
-	s := session{ProfileID: p.ID, Role: p.Role, CSRF: newID(), Expires: time.Now().Add(12 * time.Hour)}
-	token := newID()
-	a.mu.Lock()
-	for key, old := range a.sessions {
-		if time.Now().After(old.Expires) {
-			delete(a.sessions, key)
-		}
-	}
-	a.sessions[token] = s
-	a.mu.Unlock()
-	http.SetCookie(w, &http.Cookie{Name: "clearchart_" + p.Role, Value: token, Path: "/", HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteLaxMode, MaxAge: 43200})
-	return s
-}
-
-func (a *app) sessionFor(r *http.Request, role string) (session, bool) {
-	c, err := r.Cookie("clearchart_" + role)
-	if err != nil {
-		return session{}, false
-	}
-	a.mu.Lock()
-	s, ok := a.sessions[c.Value]
-	a.mu.Unlock()
-	return s, ok && s.Role == role && time.Now().Before(s.Expires)
-}
-
-func (a *app) home(w http.ResponseWriter, r *http.Request) {
-	if s, ok := a.sessionFor(r, "patient"); ok {
-		http.Redirect(w, r, "/dashboard/patient/"+s.ProfileID, http.StatusSeeOther)
-		return
-	}
-	http.Redirect(w, r, "/demo/patient", http.StatusSeeOther)
-}
-
-func (a *app) demo(w http.ResponseWriter, r *http.Request) {
-	role := r.PathValue("role")
-	if !validRole(role) {
-		http.NotFound(w, r)
-		return
-	}
-	var p Profile
-	var err error
-	if id := r.URL.Query().Get("id"); id != "" {
-		p, err = a.store.Profile(r.Context(), id)
-	} else {
-		email := demoPatientEmail
-		if role == "doctor" {
-			email = demoDoctorEmail
-		}
-		p, err = a.store.ProfileByEmail(r.Context(), email)
-	}
-	if err != nil || p.Role != role {
-		http.Error(w, "Demo profile not found. Apply schema.sql and seed.sql for Supabase mode.", 404)
-		return
-	}
-	a.setSession(w, r, p)
-	http.Redirect(w, r, "/dashboard/"+role+"/"+p.ID, http.StatusSeeOther)
-}
 
 func (a *app) dashboardData(ctx context.Context, s session, patientID, filter string) (Dashboard, error) {
 	d := Dashboard{Role: s.Role, CSRF: s.CSRF, Mode: a.mode, Filter: filter, Today: time.Now(), ViewID: newID()}
@@ -145,9 +83,6 @@ func (a *app) dashboardData(ctx context.Context, s session, patientID, filter st
 func plainSummary(records []Record) string {
 	for _, r := range records {
 		if r.Type == "note" {
-			if strings.HasPrefix(r.Content, "Two-week knee recovery review:") {
-				return "Your knee is healing well: swelling is going down and movement is improving. Keep following the recovery plan you agreed with your care team. Your next review is in two weeks."
-			}
 			replacer := strings.NewReplacer("ambulation", "walking", "edema", "swelling", "ROM", "range of motion", "range-of-motion", "range of motion", "PRN", "as needed", "BID", "twice daily", "postoperative", "after surgery")
 			return replacer.Replace(r.Content)
 		}
@@ -163,11 +98,11 @@ func (a *app) dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	s, ok := a.sessionFor(r, role)
 	if !ok {
-		http.Redirect(w, r, "/demo/"+role, http.StatusSeeOther)
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 	if s.ProfileID != r.PathValue("id") {
-		http.Error(w, "This profile is not part of your current demo session.", 403)
+		http.Error(w, "This profile does not belong to your account.", 403)
 		return
 	}
 	filter := r.URL.Query().Get("type")
@@ -209,7 +144,7 @@ func sameOrigin(r *http.Request) bool {
 func (a *app) authorizePost(w http.ResponseWriter, r *http.Request, role string) (session, bool) {
 	s, ok := a.sessionFor(r, role)
 	if !ok {
-		a.feedback(w, "Your demo session expired. Open the role switcher to start again.", http.StatusUnauthorized)
+		a.feedback(w, "Your session expired. Sign in again at /login.", http.StatusUnauthorized)
 		return s, false
 	}
 	if !sameOrigin(r) || subtle.ConstantTimeCompare([]byte(r.FormValue("csrf")), []byte(s.CSRF)) != 1 {
@@ -384,9 +319,16 @@ func (a *app) onboardForm(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	csrf := newID()
-	http.SetCookie(w, &http.Cookie{Name: "clearchart_onboard", Value: csrf, Path: "/onboard/", HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteLaxMode, MaxAge: 3600})
-	a.page(w, "onboarding.html", Dashboard{Role: role, CSRF: csrf, Mode: a.mode, Today: time.Now()})
+	s, ok := a.currentSession(r)
+	if !ok {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if s.ProfileID != "" {
+		http.Redirect(w, r, sessionDestination(s), http.StatusSeeOther)
+		return
+	}
+	a.page(w, "onboarding.html", Dashboard{Role: role, CSRF: s.CSRF, Profile: Profile{Email: s.Email}, Mode: a.mode, Today: time.Now()})
 }
 
 func (a *app) onboard(w http.ResponseWriter, r *http.Request) {
@@ -399,15 +341,26 @@ func (a *app) onboard(w http.ResponseWriter, r *http.Request) {
 		a.feedback(w, "Please shorten the form fields.", 400)
 		return
 	}
-	c, err := r.Cookie("clearchart_onboard")
-	if err != nil || !sameOrigin(r) || subtle.ConstantTimeCompare([]byte(c.Value), []byte(r.FormValue("csrf"))) != 1 {
+	s, ok := a.currentSession(r)
+	if !ok || s.AuthUserID == "" {
+		a.feedback(w, "Sign in before creating your profile.", 401)
+		return
+	}
+	if !sameOrigin(r) || subtle.ConstantTimeCompare([]byte(s.CSRF), []byte(r.PostForm.Get("csrf"))) != 1 {
 		a.feedback(w, "This form expired. Refresh the page and try again.", 403)
 		return
 	}
-	p := Profile{Role: role, Name: strings.TrimSpace(r.FormValue("name")), Email: strings.ToLower(strings.TrimSpace(r.FormValue("email"))), LicenseNum: strings.TrimSpace(r.FormValue("license_num")), Specialization: strings.TrimSpace(r.FormValue("specialization")), DOB: r.FormValue("dob"), BloodType: r.FormValue("blood_type")}
-	address, err := mail.ParseAddress(p.Email)
-	if len(p.Name) < 2 || len(p.Name) > 100 || len(p.Email) > 254 || err != nil || address.Address != p.Email {
-		a.feedback(w, "Enter your full name and a valid email address.", 400)
+	if s.ProfileID != "" {
+		a.feedback(w, "You already have a profile. Open your dashboard.", 409)
+		return
+	}
+	if _, err := a.store.ProfileByAuthUserID(r.Context(), s.AuthUserID); !errors.Is(err, ErrNotFound) {
+		a.feedback(w, "Your account already has a profile or could not be checked. Sign in again.", 409)
+		return
+	}
+	p := Profile{AuthUserID: s.AuthUserID, Role: role, Name: strings.TrimSpace(r.PostForm.Get("name")), Email: s.Email, LicenseNum: strings.TrimSpace(r.PostForm.Get("license_num")), Specialization: strings.TrimSpace(r.PostForm.Get("specialization")), DOB: r.PostForm.Get("dob"), BloodType: r.PostForm.Get("blood_type")}
+	if len(p.Name) < 2 || len(p.Name) > 100 {
+		a.feedback(w, "Enter your full name (2?100 characters).", 400)
 		return
 	}
 	if role == "doctor" {
@@ -427,14 +380,15 @@ func (a *app) onboard(w http.ResponseWriter, r *http.Request) {
 		p.LicenseNum = ""
 		p.Specialization = ""
 	}
-	p, err = a.store.CreateProfile(r.Context(), p)
+	p, err := a.store.CreateProfile(r.Context(), p)
 	if err != nil {
-		a.feedback(w, "This profile could not be created. Try another email address or check the database.", 400)
+		a.feedback(w, "This profile could not be created. If this email already has a profile, ask the workspace administrator to link your account.", 400)
 		return
 	}
-	a.setSession(w, r, p)
+	s.ProfileID, s.Role = p.ID, p.Role
+	a.issueSession(w, r, s)
 	startSSE(w)
-	patch(w, "#onboarding-result", "outer", fmt.Sprintf(`<div id="onboarding-result" class="success-box" role="status"><strong>You're all set, %s.</strong><p>Your demo profile is ready and connected to a care team.</p><a class="button button-primary" href="/dashboard/%s/%s">Open my dashboard &rarr;</a></div>`, html.EscapeString(p.Name), p.Role, p.ID))
+	patch(w, "#onboarding-result", "outer", fmt.Sprintf(`<div id="onboarding-result" class="success-box" role="status"><strong>You're all set, %s.</strong><p>Your profile is ready. Care-team connections are assigned separately.</p><a class="button button-primary" href="/dashboard/%s/%s">Open my dashboard &rarr;</a></div>`, html.EscapeString(p.Name), p.Role, p.ID))
 	patch(w, "#form-feedback", "outer", feedbackHTML("Profile created successfully.", false))
 }
 
