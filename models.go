@@ -44,6 +44,8 @@ type Dashboard struct {
 	CSRF, Mode, Filter, Summary, Role, ViewID   string
 	RecordCount, UploadCount, NotificationCount int
 	Today                                       time.Time
+	BodyHealth                                  AnatomyHealth
+	Page                                        string
 	PendingInvitations                          []Invitation // patient: invites awaiting response
 	InvitationActivity                          []Invitation // doctor: recent responses
 }

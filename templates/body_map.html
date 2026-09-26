@@ -1,0 +1,127 @@
+{{define "body_map.html"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Body map · ClearChart</title>{{template "head"}}
+  <link rel="stylesheet" href="/static/body-map.css">
+</head>
+<body><a class="skip-link" href="#main-content">Skip to content</a>
+  <div class="app-shell">
+    {{template "sidebar" .}}
+    <div class="workspace" data-signals="{_notifOpen: false}">{{template "topbar" .}}
+      <main id="main-content" class="main-content body-map-page">
+        <div class="page-heading body-map-heading">
+          <div>
+            <p class="eyebrow">YOUR RECORDS, MAPPED TO THE BODY.</p>
+            <h1>Explore the <em>body map.</em></h1>
+            {{if .Patient.ID}}<p class="page-description">{{if eq .Profile.Role "doctor"}}Viewing {{.Patient.Name}}. {{end}}Select an area to review record-backed health information. Areas without supporting data stay marked N/A.</p>{{else}}<p class="page-description">Select a connected patient to view their body map.</p>{{end}}
+          </div>
+          {{if eq .Profile.Role "doctor"}}<a class="button button-secondary" href="/dashboard/doctor/{{.Profile.ID}}{{if .Patient.ID}}?patient={{.Patient.ID}}{{end}}">← Back to overview</a>{{else}}<a class="button button-secondary" href="/dashboard/patient/{{.Profile.ID}}">← Back to overview</a>{{end}}
+        </div>
+
+        {{if and (eq .Profile.Role "doctor") .Patients}}
+        <section class="body-patient-switcher" aria-label="Choose patient">
+          <span>Patient</span>
+          <div>{{range .Patients}}<a class="body-patient-chip {{if eq .ID $.Patient.ID}}active{{end}}" href="/dashboard/doctor/{{$.Profile.ID}}/body-map?patient={{.ID}}"><span class="avatar avatar-tiny">{{initials .Name}}</span>{{.Name}}</a>{{end}}</div>
+        </section>
+        {{end}}
+
+        {{if .Patient.ID}}
+        <div class="body-safety-note"><span class="body-safety-icon">i</span><div><strong>Informational workspace — not a diagnosis.</strong><p>Statuses summarize information already present in this demo record. ClearChart does not diagnose disease or predict future conditions from missing data.</p></div></div>
+
+        <section class="body-map-workspace" aria-label="Interactive body health map">
+          <input class="body-view-radio" type="radio" name="body-view" id="view-2d" checked>
+          <input class="body-view-radio" type="radio" name="body-view" id="view-3d">
+          <input class="body-layer-radio" type="radio" name="body-layer" id="layer-organs" checked>
+          <input class="body-layer-radio" type="radio" name="body-layer" id="layer-skeleton">
+          <input class="body-layer-radio" type="radio" name="body-layer" id="layer-circulation">
+          <input class="body-layer-radio" type="radio" name="body-layer" id="layer-nervous">
+
+          <div class="body-map-toolbar">
+            <div class="body-view-toggle" aria-label="Body view">
+              <label for="view-2d">2D</label><label for="view-3d">3D</label>
+            </div>
+            <div class="body-layer-tabs" aria-label="Anatomy layer">
+              <label for="layer-organs">Organs</label><label for="layer-skeleton">Skeleton</label><label for="layer-circulation">Blood</label><label for="layer-nervous">Nervous</label>
+            </div>
+            <div class="health-legend"><span><i class="health-dot level-1"></i>Good</span><span><i class="health-dot level-2"></i>Watch</span><span><i class="health-dot level-3"></i>Monitor</span><span><i class="health-dot level-4"></i>Attention</span><span><i class="health-dot level-5"></i>Urgent</span><span><i class="health-dot level-na"></i>N/A</span></div>
+          </div>
+
+          <div class="body-map-main">
+            <div class="body-visual-panel">
+              <div class="body-figure-wrap">
+                <div class="body-depth-shadow" aria-hidden="true"></div>
+                <svg class="body-anatomy-svg" viewBox="0 0 420 720" role="img" aria-labelledby="body-map-title body-map-desc">
+                  <title id="body-map-title">Interactive anatomical body map</title><desc id="body-map-desc">A simplified educational body diagram. Select highlighted regions to open their record-backed health cards.</desc>
+                  <g class="body-silhouette">
+                    <circle cx="210" cy="58" r="42"/><path d="M170 108C135 128 120 185 123 252l14 135-22 237h50l30-203h30l30 203h50l-22-237 14-135c3-67-12-124-47-144-25 20-55 20-80 0Z"/><path d="M126 148 65 340l35 11 68-164M294 148l61 192-35 11-68-164"/>
+                  </g>
+
+                  <g class="layer layer-organs">
+                    <a href="#part-brain" class="anatomy-hotspot {{if .BodyHealth.Brain.HasData}}level-{{.BodyHealth.Brain.Level}}{{else}}level-na{{end}}"><ellipse cx="210" cy="55" rx="28" ry="23"/><text x="250" y="54">Brain · {{.BodyHealth.Brain.Status}}</text></a>
+                    <a href="#part-lungs" class="anatomy-hotspot {{if .BodyHealth.Lungs.HasData}}level-{{.BodyHealth.Lungs.Level}}{{else}}level-na{{end}}"><path d="M177 166c-23 8-35 38-29 78 4 27 22 37 45 24l5-97c-7-7-13-8-21-5ZM243 166c23 8 35 38 29 78-4 27-22 37-45 24l-5-97c7-7 13-8 21-5Z"/><text x="286" y="210">Lungs · {{.BodyHealth.Lungs.Status}}</text></a>
+                    <a href="#part-heart" class="anatomy-hotspot {{if .BodyHealth.Heart.HasData}}level-{{.BodyHealth.Heart.Level}}{{else}}level-na{{end}}"><path d="M209 217c-23-26-58 8-22 43l22 20 22-20c36-35 1-69-22-43Z"/><text x="258" y="265">Heart · {{.BodyHealth.Heart.Status}}</text></a>
+                    <a href="#part-liver" class="anatomy-hotspot {{if .BodyHealth.Liver.HasData}}level-{{.BodyHealth.Liver.Level}}{{else}}level-na{{end}}"><path d="M168 292c18-17 63-20 91-2l-10 43c-31 13-63 7-81-8Z"/><text x="272" y="315">Liver · {{.BodyHealth.Liver.Status}}</text></a>
+                    <a href="#part-stomach" class="anatomy-hotspot {{if .BodyHealth.Stomach.HasData}}level-{{.BodyHealth.Stomach.Level}}{{else}}level-na{{end}}"><path d="M223 323c25-8 43 15 30 40-7 13-26 16-35 2-6-10-2-25 5-42Z"/><text x="274" y="355">Stomach · {{.BodyHealth.Stomach.Status}}</text></a>
+                    <a href="#part-kidneys" class="anatomy-hotspot {{if .BodyHealth.Kidneys.HasData}}level-{{.BodyHealth.Kidneys.Level}}{{else}}level-na{{end}}"><path d="M173 344c-17 0-23 29-7 42 17 13 31-5 27-24-2-11-8-18-20-18ZM247 344c17 0 23 29 7 42-17 13-31-5-27-24 2-11 8-18 20-18Z"/><text x="279" y="390">Kidneys · {{.BodyHealth.Kidneys.Status}}</text></a>
+                  </g>
+
+                  <g class="layer layer-skeleton">
+                    <g class="skeleton-lines"><circle cx="210" cy="58" r="31"/><path d="M210 90v312M160 155l50-24 50 24M151 173l59 40 59-40M170 248h80M180 320l30 34 30-34M210 402l-48 184M210 402l48 184M167 586h-23M253 586h23M153 175 90 340M267 175l63 165"/><path d="M183 126c-22 28-22 70 0 96M237 126c22 28 22 70 0 96"/></g>
+                    <a href="#part-spine" class="anatomy-hotspot bone-hotspot {{if .BodyHealth.Spine.HasData}}level-{{.BodyHealth.Spine.Level}}{{else}}level-na{{end}}"><path d="M204 116h12v286h-12Z"/><text x="230" y="290">Spine · {{.BodyHealth.Spine.Status}}</text></a>
+                    <a href="#part-shoulders" class="anatomy-hotspot bone-hotspot {{if .BodyHealth.Shoulders.HasData}}level-{{.BodyHealth.Shoulders.Level}}{{else}}level-na{{end}}"><circle cx="154" cy="164" r="15"/><text x="25" y="157">Shoulders · {{.BodyHealth.Shoulders.Status}}</text></a>
+                    <a href="#part-shoulders" class="anatomy-hotspot bone-hotspot {{if .BodyHealth.Shoulders.HasData}}level-{{.BodyHealth.Shoulders.Level}}{{else}}level-na{{end}}"><circle cx="266" cy="164" r="15"/><text x="283" y="157">Shoulders · {{.BodyHealth.Shoulders.Status}}</text></a>
+                    <a href="#part-knees" class="anatomy-hotspot bone-hotspot {{if .BodyHealth.Knees.HasData}}level-{{.BodyHealth.Knees.Level}}{{else}}level-na{{end}}"><circle cx="174" cy="505" r="16"/><text x="23" y="510">Knees · {{.BodyHealth.Knees.Status}}</text></a>
+                    <a href="#part-knees" class="anatomy-hotspot bone-hotspot {{if .BodyHealth.Knees.HasData}}level-{{.BodyHealth.Knees.Level}}{{else}}level-na{{end}}"><circle cx="246" cy="505" r="16"/><text x="267" y="510">Knees · {{.BodyHealth.Knees.Status}}</text></a>
+                    <a href="#part-ankles" class="anatomy-hotspot bone-hotspot {{if .BodyHealth.Ankles.HasData}}level-{{.BodyHealth.Ankles.Level}}{{else}}level-na{{end}}"><circle cx="148" cy="626" r="14"/><text x="18" y="631">Ankles · {{.BodyHealth.Ankles.Status}}</text></a>
+                    <a href="#part-ankles" class="anatomy-hotspot bone-hotspot {{if .BodyHealth.Ankles.HasData}}level-{{.BodyHealth.Ankles.Level}}{{else}}level-na{{end}}"><circle cx="272" cy="626" r="14"/><text x="290" y="631">Ankles · {{.BodyHealth.Ankles.Status}}</text></a>
+                  </g>
+
+                  <g class="layer layer-circulation">
+                    <path class="vessel artery" d="M210 226v178m0-130-88 80m88-80 88 80m-88 50-50 211m50-211 50 211"/><path class="vessel vein" d="M198 232v170m0-116-72 70m72-70 72 70m-72 48-37 211m37-211 37 211"/>
+                    <a href="#part-heart" class="anatomy-hotspot {{if .BodyHealth.Heart.HasData}}level-{{.BodyHealth.Heart.Level}}{{else}}level-na{{end}}"><circle cx="210" cy="229" r="24"/><text x="244" y="230">Heart · {{.BodyHealth.Heart.Status}}</text></a>
+                    <a href="#part-blood" class="anatomy-hotspot circulation-hotspot {{if .BodyHealth.Blood.HasData}}level-{{.BodyHealth.Blood.Level}}{{else}}level-na{{end}}"><circle cx="210" cy="355" r="18"/><text x="244" y="360">Blood / circulation · {{.BodyHealth.Blood.Status}}</text></a>
+                  </g>
+
+                  <g class="layer layer-nervous">
+                    <path class="nerve-main" d="M210 84v324m0-238-76 176m76-176 76 176m-76 61-48 210m48-210 48 210"/><g class="nerve-branches"><path d="M210 116 175 150m35-14 35 14M210 210l-50 72m50-45 50 72M210 444l-24 96m24-80 24 96"/></g>
+                    <a href="#part-brain" class="anatomy-hotspot {{if .BodyHealth.Brain.HasData}}level-{{.BodyHealth.Brain.Level}}{{else}}level-na{{end}}"><ellipse cx="210" cy="55" rx="28" ry="23"/><text x="250" y="54">Brain · {{.BodyHealth.Brain.Status}}</text></a>
+                    <a href="#part-nervous-system" class="anatomy-hotspot nerve-hotspot {{if .BodyHealth.NervousSystem.HasData}}level-{{.BodyHealth.NervousSystem.Level}}{{else}}level-na{{end}}"><circle cx="210" cy="345" r="19"/><text x="242" y="350">Nervous system · {{.BodyHealth.NervousSystem.Status}}</text></a>
+                  </g>
+                </svg>
+                <div class="body-view-caption"><strong class="caption-2d">2D anatomical overview</strong><strong class="caption-3d">3D perspective preview</strong><span>Simplified visualization — not to anatomical scale</span></div>
+              </div>
+            </div>
+
+            <aside class="body-status-panel" aria-label="Body health summary">
+              <div class="body-status-header"><span>BODY HEALTH</span><h2>{{.Patient.Name}}</h2><p>Choose a highlighted area or browse the cards below.</p></div>
+              <div class="body-card-list">
+                {{range .BodyHealth.Parts}}
+                <article class="body-part-card {{if .Critical}}critical{{end}}" id="part-{{.ID}}">
+                  <div class="body-part-title"><div><span class="body-system-label">{{.System}}</span><h3>{{.Name}}</h3></div><span class="body-status-pill {{if .HasData}}level-{{.Level}}{{else}}level-na{{end}}">{{.Status}}</span></div>
+                  {{if .HasData}}
+                  <div class="organ-health-row"><span>Health level</span><strong>{{.Level}} / 5</strong></div>
+                  <div class="organ-health-bar level-{{.Level}}" role="img" aria-label="Health level {{.Level}} out of 5"><span style="width: {{bodyPercent .Level}}%"></span></div>
+                  <div class="body-info-block"><span>Current information</span><p>{{.Summary}}</p></div>
+                  <div class="body-info-block"><span>Possible issue</span><p>{{.PossibleIssue}}</p></div>
+                  <div class="body-info-block"><span>Future considerations</span><p>{{.FutureRisk}}</p></div>
+                  <div class="body-guidance {{if .Critical}}urgent{{end}}"><strong>{{if .Critical}}Urgent review flag{{else}}Care guidance{{end}}</strong><p>{{.Guidance}}</p></div>
+                  <p class="body-evidence">Based on {{.Evidence}}</p>
+                  {{else}}
+                  <div class="body-na-state"><strong>N/A — no information available</strong><p>{{.Summary}}</p><span>ClearChart will not assume this area is healthy when data is missing.</span></div>
+                  {{end}}
+                </article>
+                {{end}}
+              </div>
+            </aside>
+          </div>
+        </section>
+        {{else}}
+        <section class="panel body-empty-state"><span>{{template "icon-body"}}</span><h2>No patient selected</h2><p>Connect or select a patient from your overview to open their body map.</p></section>
+        {{end}}
+        <footer class="page-footer"><span>Made for a more connected kind of care.</span><span>ClearChart © {{.Today.Year}}</span></footer>
+      </main>
+    </div>
+  </div>
+</body>
+</html>{{end}}
