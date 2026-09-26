@@ -8,7 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/http"
-	"net/url"
+
 	"strings"
 	"time"
 )
@@ -178,25 +178,24 @@ func (a *app) createInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token := hex.EncodeToString(secret[:])
-	i, err := a.store.CreateInvitation(r.Context(), s.ProfileID, email, invitationHash(token))
+	_, err := a.store.CreateInvitation(r.Context(), s.ProfileID, email, invitationHash(token))
 	if err != nil {
 		a.feedback(w, "Could not save invitation. Check the database migration.", 500)
 		return
 	}
-	scheme := "http"
-	if r.TLS != nil || a.secureCookies {
-		scheme = "https"
-	}
-	link := (&url.URL{Scheme: scheme, Host: r.Host, Path: "/invitations/" + token}).String()
-	fragment, err := a.render("invitation-created", invitationPage{Invitation: i, Link: link})
-	if err != nil {
-		a.feedback(w, "Invitation saved. Create another link if needed.", 500)
-		return
-	}
+
 	startSSE(w)
-	patch(w, "#invitation-result", "outer", fragment)
+	// Refresh the list to show the new pending invite
 	a.invitationList(w, r, s)
-	patch(w, "#form-feedback", "outer", feedbackHTML("Invitation created. Share the link with your patient; no email has been sent.", false))
+
+	// Reset the input form
+	if fragment, err := a.render("invite-form", invitationPage{CSRF: s.CSRF}); err == nil {
+		patch(w, "#invite-form", "outer", fragment)
+	}
+
+	// Show success message
+	patch(w, "#form-feedback", "outer", feedbackHTML("Invitation sent to "+email+".", false))
+
 	// Notify the patient in real-time if they are online.
 	if p, err := a.store.ProfileByEmail(r.Context(), email); err == nil {
 		a.hub.publish(p.ID, "")
@@ -287,8 +286,7 @@ func (a *app) revokeInvitation(w http.ResponseWriter, r *http.Request) {
 	}
 	startSSE(w)
 	a.invitationList(w, r, s)
-	patch(w, "#invitation-result", "outer", `<div id="invitation-result"></div>`)
-	patch(w, "#form-feedback", "outer", feedbackHTML("Invitation revoked. Its link can no longer grant access.", false))
+	patch(w, "#form-feedback", "outer", feedbackHTML("Invitation revoked. It can no longer be accepted.", false))
 }
 func (a *app) reviewInvitation(w http.ResponseWriter, r *http.Request) {
 	token := r.PathValue("token")

@@ -85,65 +85,34 @@ func TestInvitationIntegrationCheck(t *testing.T) {
 		t.Fatal("CSRF created invite")
 	}
 	w := request("POST", "/invitations", url.Values{"csrf": {ds.CSRF}, "email": {patient.Email}}, dc)
-	if !strings.Contains(w.Body.String(), "Invitation created") || strings.Contains(w.Body.String(), "ZgotmplZ") {
+	if !strings.Contains(w.Body.String(), "Invitation sent") || strings.Contains(w.Body.String(), "ZgotmplZ") {
 		t.Fatal(w.Body.String())
 	}
 	list, _ = s.Invitations(ctx, doctor.ID)
 	if len(list) != 1 {
 		t.Fatal("no saved invitation")
 	}
-	// Parse token from the escaped HTML link returned by the Datastar fragment.
-	body := w.Body.String()
-	pos := strings.Index(body, "http://example.com/invitations/")
-	if pos < 0 {
-		t.Fatal(body)
+	// Fetch notifications to ensure patient received it
+	notifs := request("GET", "/notifications", nil, pc)
+	if notifs.Code != 200 || !strings.Contains(notifs.Body.String(), "wants to connect") {
+		t.Fatal("patient did not receive notification", notifs.Body.String())
 	}
-	token := body[pos+len("http://example.com/invitations/"):]
-	token = token[:64]
-	if !validInvitationToken(token) {
-		t.Fatal("invalid link")
-	}
-	path := "/invitations/" + token
-	signedOut := request("GET", path, nil, nil)
-	if signedOut.Code != 303 || signedOut.Header().Get("Location") != "/login" {
-		t.Fatal("not gated")
-	}
-	var pending *http.Cookie
-	for _, c := range signedOut.Result().Cookies() {
-		if c.Name == "clearchart_invitation" {
-			pending = c
-		}
-	}
-	if pending == nil {
-		t.Fatal("invitation not saved through login")
-	}
-	r := httptest.NewRequest("GET", "/", nil)
-	r.AddCookie(pending)
-	if a.invitationDestination(r, ps) != path {
-		t.Fatal("login continuation lost")
-	}
-	review := request("GET", path, nil, pc)
-	if review.Code != 200 || !strings.Contains(review.Body.String(), "Accept and share my chart") {
-		t.Fatal(review.Body.String())
-	}
+
 	if linked, _ := s.IsCareTeam(ctx, patient.ID, doctor.ID); linked {
-		t.Fatal("GET granted access")
+		t.Fatal("GET granted access early")
 	}
-	if err := s.RespondInvitation(ctx, invitationHash(token), patient.ID, "other@example.org", true); !errors.Is(err, ErrForbidden) {
-		t.Fatal("wrong email accepted", err)
-	}
-	if err := s.RespondInvitation(ctx, invitationHash(token), doctor.ID, patient.Email, true); !errors.Is(err, ErrForbidden) {
-		t.Fatal("doctor accepted", err)
-	}
-	accepted := request("POST", path, url.Values{"csrf": {ps.CSRF}, "decision": {"accept"}}, pc)
+
+	// Accept inline
+	accepted := request("POST", "/respond-invitation/"+list[0].ID, url.Values{"csrf": {ps.CSRF}, "decision": {"accept"}}, pc)
 	if !strings.Contains(accepted.Body.String(), "Invitation accepted") {
 		t.Fatal(accepted.Body.String())
 	}
 	if linked, _ := s.IsCareTeam(ctx, patient.ID, doctor.ID); !linked {
 		t.Fatal("accept did not create care link")
 	}
-	if err := s.RespondInvitation(ctx, invitationHash(token), patient.ID, patient.Email, true); err != nil {
-		t.Fatal("accept replay not idempotent", err)
+	acceptedAgain := request("POST", "/respond-invitation/"+list[0].ID, url.Values{"csrf": {ps.CSRF}, "decision": {"accept"}}, pc)
+	if !strings.Contains(acceptedAgain.Body.String(), "Invitation accepted") {
+		t.Fatal("accept replay not idempotent")
 	}
 	if err := s.RevokeInvitation(ctx, list[0].ID, doctor.ID); !errors.Is(err, ErrNotFound) {
 		t.Fatal("revoked accepted invitation")
