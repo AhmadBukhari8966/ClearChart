@@ -29,6 +29,7 @@
   <nav class="main-nav" aria-label="Main navigation">
     <a class="nav-link active" href="{{if eq .Profile.Role "doctor"}}/dashboard/doctor/{{.Profile.ID}}{{else}}/dashboard/patient/{{.Profile.ID}}{{end}}" aria-current="page">{{template "icon-grid"}}<span>Overview</span><span class="nav-active-dot"></span></a>
     {{if eq .Profile.Role "doctor"}}
+    <a class="nav-link" href="/invitations">{{template "icon-people"}}<span>Invite patients</span></a>
     <a class="nav-link" href="#my-patients">{{template "icon-people"}}<span>My patients</span></a>
     <a class="nav-link" href="#reports-center">{{template "icon-record"}}<span>Patient reports</span></a>
     <a class="nav-link" href="#biometrics">{{template "icon-heart"}}<span>My personal data</span></a>
@@ -49,7 +50,18 @@
 {{end}}
 
 {{define "topbar"}}
-<header class="topbar"><div class="breadcrumb">My workspace <span>/</span> <strong>Overview</strong></div><div class="topbar-actions"><span class="live-tag"><i></i> Live updates</span><span class="topbar-divider"></span><time>{{date .Today}}</time><span class="avatar avatar-small">{{initials .Profile.Name}}</span></div></header>
+<header class="topbar">
+  <div class="breadcrumb">My workspace <span>/</span> <strong>Overview</strong></div>
+  <div class="topbar-actions">
+    <span class="live-tag"><i></i> Live updates</span>
+    <span class="topbar-divider"></span>
+    <time>{{date .Today}}</time>
+    {{template "notification-bell" .}}
+    <span class="avatar avatar-small">{{initials .Profile.Name}}</span>
+  </div>
+</header>
+<div class="notif-backdrop" data-show="$_notifOpen" data-on:click="$_notifOpen = false" aria-hidden="true"></div>
+<div id="notification-panel" class="notif-panel" data-show="$_notifOpen" role="dialog" aria-label="Notification center"></div>
 {{end}}
 
 {{define "record"}}

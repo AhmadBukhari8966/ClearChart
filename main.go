@@ -62,6 +62,7 @@ func newApp(store Store, mode string) (*app, error) {
 			}
 			return s
 		},
+		"notificationPage": func(count int) notificationPage { return notificationPage{Count: count} },
 	}).ParseFS(assets, "templates/*.html")
 	if err != nil {
 		return nil, err
@@ -77,6 +78,13 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("GET /signup", a.authForm)
 	mux.HandleFunc("POST /signup", a.signup)
 	mux.HandleFunc("POST /logout", a.logout)
+	mux.HandleFunc("GET /invitations", a.invitationsPage)
+	mux.HandleFunc("POST /invitations", a.createInvitation)
+	mux.HandleFunc("GET /invitations/{token}", a.reviewInvitation)
+	mux.HandleFunc("POST /invitations/{token}", a.respondInvitation)
+	mux.HandleFunc("POST /invitations/{id}/revoke", a.revokeInvitation)
+	mux.HandleFunc("GET /notifications", a.notificationsPanel)
+	mux.HandleFunc("POST /respond-invitation/{id}", a.respondInvitationInline)
 	mux.HandleFunc("GET /dashboard/{role}/{id}", a.dashboard)
 	mux.HandleFunc("GET /onboard/{role}", a.onboardForm)
 	mux.HandleFunc("POST /onboard/{role}", a.onboard)
@@ -149,6 +157,12 @@ func main() {
 	checkCancel()
 	if err != nil && !errors.Is(err, ErrNotFound) {
 		log.Fatal("Database schema is not ready. Apply migrations/001_auth_identity.sql to the existing database (schema.sql for a new database).")
+	}
+	invitationCtx, invitationCancel := context.WithTimeout(ctx, 5*time.Second)
+	_, err = store.Invitations(invitationCtx, "00000000-0000-0000-0000-000000000000")
+	invitationCancel()
+	if err != nil {
+		log.Fatal("Invitation schema is not ready. Apply migrations/002_care_invitations.sql (schema.sql for a new database).")
 	}
 	a, err := newApp(store, "Supabase connected")
 	if err != nil {

@@ -63,6 +63,9 @@ func (s *postgresStore) ProfileByAuthUserID(ctx context.Context, authUserID stri
 	}
 	return scanProfile(s.db.QueryRowContext(ctx, `SELECT `+profileColumns+` FROM profiles p WHERE p.auth_user_id=$1`, authUserID))
 }
+func (s *postgresStore) ProfileByEmail(ctx context.Context, email string) (Profile, error) {
+	return scanProfile(s.db.QueryRowContext(ctx, `SELECT `+profileColumns+` FROM profiles p WHERE lower(p.email)=lower($1)`, email))
+}
 func (s *postgresStore) queryProfiles(ctx context.Context, query string, arg string) ([]Profile, error) {
 	rows, err := s.db.QueryContext(ctx, query, arg)
 	if err != nil {

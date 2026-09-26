@@ -112,7 +112,7 @@ func (a *app) events(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	patientID = d.Patient.ID
-	allowed := map[string]bool{patientID: true}
+	allowed := map[string]bool{patientID: true, s.ProfileID: true}
 	for _, p := range d.Patients {
 		allowed[p.ID] = true
 	}
@@ -148,7 +148,18 @@ func (a *app) events(w http.ResponseWriter, r *http.Request) {
 		if current, ok := a.sessionFor(r, role); !ok || current.ProfileID != s.ProfileID {
 			return
 		}
-		d, err = a.dashboardData(r.Context(), s, patientID, filter)
+		previousPatients := d.Patients
+		next, loadErr := a.dashboardData(r.Context(), s, patientID, filter)
+		err = loadErr
+		if err == nil && role == "doctor" && !samePatientDirectory(previousPatients, next.Patients) {
+			if err = writeStream(w, func() {
+				patch(w, "#care-team-update", "outer", `<div id="care-team-update" class="success-box" role="status">Your patient list has changed. <a href="/">Refresh your workspace to see new connections.</a></div>`)
+			}); err != nil {
+				return
+			}
+			continue
+		}
+		d = next
 		if err != nil {
 			if err = writeStream(w, func() { fmt.Fprint(w, ": refresh unavailable\n\n") }); err != nil {
 				return
@@ -216,4 +227,20 @@ func (a *app) snapshot(w http.ResponseWriter, d Dashboard) {
 	}
 	patch(w, "#record-count", "outer", fmt.Sprintf(`<strong id="record-count">%d</strong>`, d.RecordCount))
 	patch(w, "#upload-count", "outer", fmt.Sprintf(`<strong id="upload-count">%d</strong>`, d.UploadCount))
+	if h, e := a.render("notification-badge", notificationPage{Count: d.NotificationCount}); e == nil {
+		patch(w, "#notification-badge", "outer", h)
+	}
+}
+
+// Keep selection and unsaved drafts intact when a new care relationship arrives.
+func samePatientDirectory(a, b []Profile) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].ID != b[i].ID {
+			return false
+		}
+	}
+	return true
 }

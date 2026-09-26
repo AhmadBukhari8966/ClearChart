@@ -9,7 +9,7 @@
 <body><a class="skip-link" href="#main-content">Skip to content</a>
   <div class="app-shell"
     data-init="@get('/events/patient/{{.Profile.ID}}?view={{.ViewID}}&amp;type={{.Filter}}', {openWhenHidden: true})">
-    {{template "sidebar" .}}<div class="workspace">{{template "topbar" .}}
+    {{template "sidebar" .}}<div class="workspace" data-signals="{_notifOpen: false}">{{template "topbar" .}}
       <main id="main-content" class="main-content">
         <div class="page-heading">
           <div>

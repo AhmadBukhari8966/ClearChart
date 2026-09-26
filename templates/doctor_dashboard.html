@@ -10,7 +10,7 @@
   <div class="app-shell"
     data-signals="{selectedpatient: '{{.Patient.ID}}', _savingnote: false}"
     data-effect="$selectedpatient; @get('/events/doctor/{{.Profile.ID}}?view={{.ViewID}}', {openWhenHidden: true, filterSignals: {include: /^selectedpatient$/}})">
-    {{template "sidebar" .}}<div class="workspace">{{template "topbar" .}}
+    {{template "sidebar" .}}<div class="workspace" data-signals="{_notifOpen: false}">{{template "topbar" .}}
       <main class="main-content" id="main-content">
         <div class="page-heading">
           <div>
@@ -19,6 +19,7 @@
             <p class="page-description">Welcome, {{.Profile.Name}}. Your patients' stories, in one place.</p>
           </div>{{if .Patient.ID}}<a class="button button-primary" href="#new-record">+ Add a care update</a>{{end}}
         </div>
+        <p class="my-4"><a class="button button-primary" href="/invitations">+ Invite a patient</a></p>
         <div class="doctor-summary-strip">
           <div><span class="summary-icon sage">{{template "icon-people"}}</span><strong>{{len
               .Patients}}</strong><span>connected patients</span></div>
@@ -27,6 +28,7 @@
           <div><span class="summary-icon lavender">{{template "icon-upload"}}</span><strong
               id="upload-count">{{.UploadCount}}</strong><span>reports for this patient</span></div>
         </div>
+        <div id="care-team-update" role="status" aria-live="polite"></div>
         <div id="form-feedback" role="status" aria-live="polite"></div>
         <div class="dashboard-grid doctor-grid">
           <div class="main-column">
@@ -39,7 +41,7 @@
                   .Patients}}</span>
               </div>
               {{template "doctor-selected-patient" .}}
-              <p class="directory-hint" id="patient-directory-hint">{{if .Patients}}Scroll to browse {{len .Patients}} patients, then select a name to open their chart.{{else}}Your workspace is ready. Ask your workspace administrator to connect the patients in your care.{{end}}</p>
+              <p class="directory-hint" id="patient-directory-hint">{{if .Patients}}Scroll to browse {{len .Patients}} patients, then select a name to open their chart.{{else}}Your workspace is ready. Invite a patient using their email and share the invitation link.{{end}}</p>
               <div class="patient-selector" id="patient-directory" role="region" tabindex="0"
                 aria-label="Choose a patient" aria-describedby="patient-directory-hint">
                 {{range .Patients}}<a class="patient-option {{if eq .ID $.Patient.ID}}chosen{{end}}"
@@ -51,7 +53,7 @@
                     .Name}}</span><span class="patient-option-details"><strong>{{.Name}}</strong><small>{{if .DOB}}Born
                       {{.DOB}}{{end}}{{if .BloodType}} &middot; {{.BloodType}}{{end}}</small></span>
                   <span class="selected-check">{{template "icon-check"}}</span></a>{{else}}<p
-                  class="muted-copy">Connected patients will appear here once your care team is assigned.</p>{{end}}
+                  class="muted-copy">Patients appear here after accepting your invitation. Refresh to see new connections.</p>{{end}}
               </div>
             </section>
             {{template "doctor-record-form" .}}

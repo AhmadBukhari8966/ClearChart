@@ -104,14 +104,14 @@ func sessionDestination(s session) string {
 func (a *app) home(w http.ResponseWriter, r *http.Request) {
 	dest := "/login"
 	if s, ok := a.currentSession(r); ok {
-		dest = sessionDestination(s)
+		dest = a.invitationDestination(r, s)
 	}
 	http.Redirect(w, r, dest, http.StatusSeeOther)
 }
 
 func (a *app) authForm(w http.ResponseWriter, r *http.Request) {
 	if s, ok := a.currentSession(r); ok {
-		http.Redirect(w, r, sessionDestination(s), http.StatusSeeOther)
+		http.Redirect(w, r, a.invitationDestination(r, s), http.StatusSeeOther)
 		return
 	}
 	mode := "login"
@@ -218,7 +218,7 @@ func (a *app) authenticate(w http.ResponseWriter, r *http.Request, signup bool) 
 	}
 	a.issueSession(w, r, s)
 	a.cookie(w, r, "clearchart_auth_csrf", "", -1)
-	http.Redirect(w, r, sessionDestination(s), http.StatusSeeOther)
+	http.Redirect(w, r, a.invitationDestination(r, s), http.StatusSeeOther)
 }
 
 // Logout invalidates this browser's local session. No provider tokens are stored.

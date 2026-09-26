@@ -27,6 +27,10 @@ func (a *app) dashboardData(ctx context.Context, s session, patientID, filter st
 	}
 	if s.Role == "patient" {
 		patientID = s.ProfileID
+		if d.PendingInvitations, err = a.store.PendingInvitationsForEmail(ctx, s.Email); err != nil {
+			return d, err
+		}
+		d.NotificationCount = len(d.PendingInvitations)
 	} else {
 		if d.Patients, err = a.store.Patients(ctx, s.ProfileID); err != nil {
 			return d, err
@@ -49,6 +53,10 @@ func (a *app) dashboardData(ctx context.Context, s session, patientID, filter st
 		if d.Reports, err = a.store.Reports(ctx, s.ProfileID); err != nil {
 			return d, err
 		}
+		if d.InvitationActivity, err = a.store.RecentInvitationActivity(ctx, s.ProfileID); err != nil {
+			return d, err
+		}
+		d.NotificationCount = len(d.InvitationActivity)
 	}
 	if patientID == "" {
 		return d, nil
@@ -388,7 +396,7 @@ func (a *app) onboard(w http.ResponseWriter, r *http.Request) {
 	s.ProfileID, s.Role = p.ID, p.Role
 	a.issueSession(w, r, s)
 	startSSE(w)
-	patch(w, "#onboarding-result", "outer", fmt.Sprintf(`<div id="onboarding-result" class="success-box" role="status"><strong>You're all set, %s.</strong><p>Your profile is ready. Care-team connections are assigned separately.</p><a class="button button-primary" href="/dashboard/%s/%s">Open my dashboard &rarr;</a></div>`, html.EscapeString(p.Name), p.Role, p.ID))
+	patch(w, "#onboarding-result", "outer", fmt.Sprintf(`<div id="onboarding-result" class="success-box" role="status"><strong>You're all set, %s.</strong><p>Your profile is ready. Care-team connections are assigned separately.</p><a class="button button-primary" href="/">Continue to my workspace &rarr;</a></div>`, html.EscapeString(p.Name)))
 	patch(w, "#form-feedback", "outer", feedbackHTML("Profile created successfully.", false))
 }
 
