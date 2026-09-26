@@ -10,54 +10,42 @@
 </button>
 {{end}}
 
-{{define "notification-panel"}}<aside id="notification-panel" class="notif-panel" role="dialog" aria-label="Notification center" data-attr:aria-hidden="!$_notifOpen" data-show="$_notifOpen">
+{{define "notification-panel"}}
+<div id="notification-panel" class="notif-panel" data-show="$_notifOpen" role="dialog" aria-label="Notification center">
   <div class="notif-panel-header">
     <h2>Notifications</h2>
     <button class="notif-close" aria-label="Close notifications" data-on:click="$_notifOpen = false">✕</button>
   </div>
   <div class="notif-list">
-  {{if not .Notifications}}<p class="notif-empty">You're all caught up.</p>{{end}}
-  {{range .Notifications}}
-  <div class="notif-item notif-{{.Kind}}">
-    <span class="notif-icon">{{if eq .Kind "invite"}}🤝{{else if eq .Kind "accepted"}}✅{{else if eq .Kind "declined"}}❌{{else}}🔔{{end}}</span>
-    <div class="notif-body">
-      <strong>{{.Title}}</strong>
-      <p>{{.Body}}</p>
-      {{if eq .Kind "invite"}}
-      <div class="notif-actions" data-signals="{_responding_{{.ID}}: false}">
-        <form method="post" action="/respond-invitation/{{.Invitation.ID}}"
-          data-indicator:_responding_{{.ID}}
-          data-on:submit__prevent="@post('/respond-invitation/{{.Invitation.ID}}', {contentType: 'form'})">
-          <input type="hidden" name="csrf" value="{{$.CSRF}}">
-          <input type="hidden" name="decision" value="accept">
-          <button class="button button-primary button-small" type="submit" data-attr:disabled="$_responding_{{.ID}}">Accept</button>
-        </form>
-        <form method="post" action="/respond-invitation/{{.Invitation.ID}}"
-          data-indicator:_responding_{{.ID}}
-          data-on:submit__prevent="@post('/respond-invitation/{{.Invitation.ID}}', {contentType: 'form'})">
-          <input type="hidden" name="csrf" value="{{$.CSRF}}">
-          <input type="hidden" name="decision" value="decline">
-          <button class="button button-small" type="submit" data-attr:disabled="$_responding_{{.ID}}">Decline</button>
-        </form>
-        <a class="notif-review-link" href="/invitations/{{.Invitation.ID}}/review">Review details ↗</a>
+    {{if not .Notifications}}<p class="notif-empty">You're all caught up. ✓</p>{{end}}
+    {{range .Notifications}}
+    <div class="notif-item notif-{{.Kind}}">
+      <span class="notif-icon">{{if eq .Kind "invite"}}🤝{{else if eq .Kind "accepted"}}✅{{else if eq .Kind "declined"}}❌{{else}}🔔{{end}}</span>
+      <div class="notif-body">
+        <strong>{{.Title}}</strong>
+        <p>{{.Body}}</p>
+        {{if eq .Kind "invite"}}
+        <div class="notif-actions" data-signals="{_responding: false}">
+          <form method="post" action="/respond-invitation/{{.Invitation.ID}}"
+            data-indicator:_responding
+            data-on:submit__prevent="@post('/respond-invitation/{{.Invitation.ID}}', {contentType: 'form'})">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <input type="hidden" name="decision" value="accept">
+            <button class="button button-primary button-small" type="submit" data-attr:disabled="$_responding">Accept</button>
+          </form>
+          <form method="post" action="/respond-invitation/{{.Invitation.ID}}"
+            data-indicator:_responding
+            data-on:submit__prevent="@post('/respond-invitation/{{.Invitation.ID}}', {contentType: 'form'})">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <input type="hidden" name="decision" value="decline">
+            <button class="button button-small" type="submit" data-attr:disabled="$_responding">Decline</button>
+          </form>
+        </div>
+        {{end}}
+        <time class="notif-time">{{date .CreatedAt}}</time>
       </div>
-      {{end}}
-      <time class="notif-time">{{date .CreatedAt}}</time>
     </div>
+    {{end}}
   </div>
-  {{end}}
-  </div>
-</aside>{{end}}
-
-{{define "notification-complete"}}<div id="notification-panel" class="notif-panel" data-show="$_notifOpen">
-  <div class="notif-panel-header">
-    <h2>Notifications</h2>
-    <button class="notif-close" aria-label="Close notifications" data-on:click="$_notifOpen = false">✕</button>
-  </div>
-  <div class="notif-list">
-    <div class="notif-item notif-accepted success-box">
-      <span class="notif-icon">✅</span>
-      <div class="notif-body"><strong>{{.Message}}</strong><p><a href="/">Refresh your dashboard to see your updated care team.</a></p></div>
-    </div>
-  </div>
-</div>{{end}}
+</div>
+{{end}}
