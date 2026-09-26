@@ -132,7 +132,7 @@ func (a *app) page(w http.ResponseWriter, name string, data any) {
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+	if error := godotenv.Load(); error != nil && !os.IsNotExist(error) {
 		log.Fatal("Could not read .env. Check its formatting and permissions.")
 	}
 	dsn := os.Getenv("DATABASE_URL")
