@@ -1,48 +1,57 @@
 {{define "patient-directory"}}
 <div id="patient-directory-results">
-  <p class="directory-hint" id="patient-directory-hint" role="status" aria-live="polite">{{if .Query}}{{if .Matches}}{{.Matches}} {{if eq .Matches 1}}patient matches{{else}}patients match{{end}} “{{.Query}}”{{if gt .Matches (len .Patients)}}, showing the first {{len .Patients}}. Keep typing to narrow it down{{end}}.{{else}}No patients match “{{.Query}}”.{{end}}{{else if gt .Matches (len .Patients)}}Showing {{len .Patients}} of {{.Matches}} patients. Search to find anyone else.{{else if .Patients}}Select a name to open their chart.{{else}}Your workspace is ready. Invite a patient using their email and share the invitation link.{{end}}</p>
-  <div class="patient-selector" id="patient-directory" role="region" tabindex="0"
+  <p class="directory-hint" id="patient-directory-hint" role="status" aria-live="polite">{{if .Query}}{{if .Matches}}{{.Matches}} {{if eq .Matches 1}}patient matches{{else}}patients match{{end}} “{{.Query}}”{{if gt .Matches (len .Patients)}}, showing the first {{len .Patients}}. Keep typing to narrow it down{{end}}.{{else}}No patients match “{{.Query}}”.{{end}}{{else if gt .Matches (len .Patients)}}Showing {{len .Patients}} of {{.Matches}} patients. Search to find anyone else.{{else if .Patients}}Select a patient to open their chart.{{else}}Your workspace is ready. Invite a patient using their account email.{{end}}</p>
+  <div class="patient-list" id="patient-directory" role="region" tabindex="0"
     aria-label="Choose a patient" aria-describedby="patient-directory-hint">
     {{range .Patients}}<a class="patient-option {{if eq .ID $.SelectedID}}chosen{{end}}"
       href="/dashboard/doctor/{{$.DoctorID}}?patient={{.ID}}"
       data-on:click__prevent="!$_savingnote &amp;&amp; ($selectedpatient = '{{.ID}}')"
       data-class:chosen="$selectedpatient === '{{.ID}}'"
       data-attr:aria-current="$selectedpatient === '{{.ID}}' ? 'true' : null"
-      {{if eq .ID $.SelectedID}}aria-current="true"{{end}}><span class="avatar avatar-sage">{{initials
+      {{if eq .ID $.SelectedID}}aria-current="true"{{end}}><span class="avatar avatar-md">{{initials
         .Name}}</span><span class="patient-option-details"><strong>{{.Name}}</strong><small>{{if .DOB}}Born
           {{.DOB}}{{end}}{{if .BloodType}} &middot; {{.BloodType}}{{end}}</small></span>
-      <span class="selected-check">{{template "icon-check"}}</span></a>{{else}}{{if not .Query}}<p
-      class="muted-copy">Patients appear here after accepting your invitation. Refresh to see new connections.</p>{{end}}{{end}}
+      <span class="patient-option-state">{{template "icon-chevron"}}</span></a>{{else}}{{if not .Query}}<div
+      class="empty-state empty-compact"><span class="empty-icon">{{template "icon-people"}}</span><strong>No connected patients yet</strong><p>Patients appear here after accepting your invitation. Refresh to see new connections.</p><a class="btn btn-secondary btn-sm" href="/invitations">{{template "icon-mail"}}Invite a patient</a></div>{{else}}<div class="empty-state empty-compact"><span class="empty-icon">{{template "icon-search"}}</span><strong>No matches</strong><p>Try a different name or email address.</p></div>{{end}}{{end}}
   </div>
 </div>
 {{end}}
 
 {{define "doctor-selected-patient"}}
-<div id="selected-patient-summary" {{if .Patient.ID}}class="selected-patient-summary"{{end}}>
+<section id="selected-patient-summary" {{if .Patient.ID}}class="patient-banner" aria-label="Selected patient"{{end}}>
   {{if .Patient.ID}}
-  <span class="small-icon">{{template "icon-check"}}</span>
-  <div>
-    <span data-show="$selectedpatient === '{{.Patient.ID}}'">Viewing chart</span>
-    <span data-show="$selectedpatient !== '{{.Patient.ID}}'" style="display: none" role="status">Loading selected chart…</span>
-    <strong>{{.Patient.Name}}</strong>
-    <small>{{if .Patient.DOB}}Born {{.Patient.DOB}}{{end}}{{if .Patient.BloodType}} &middot; Blood type {{.Patient.BloodType}}{{end}}</small>
+  <span class="avatar avatar-lg">{{initials .Patient.Name}}</span>
+  <div class="patient-banner-main">
+    <span class="patient-banner-status">
+      <span class="status-chip status-live" data-show="$selectedpatient === '{{.Patient.ID}}'"><i aria-hidden="true"></i>Viewing chart</span>
+      <span class="status-chip" data-show="$selectedpatient !== '{{.Patient.ID}}'" style="display: none" role="status"><span class="spinner" aria-hidden="true"></span>Loading selected chart…</span>
+    </span>
+    <h2>{{.Patient.Name}}</h2>
+    <dl class="patient-banner-facts">
+      {{if .Patient.DOB}}<div><dt>Date of birth</dt><dd>{{.Patient.DOB}}</dd></div>{{end}}
+      {{if .Patient.BloodType}}<div><dt>Blood type</dt><dd>{{.Patient.BloodType}}</dd></div>{{end}}
+      {{if .Patient.Email}}<div><dt>Email</dt><dd>{{.Patient.Email}}</dd></div>{{end}}
+    </dl>
   </div>
-  <a href="#health-timeline">View timeline {{template "icon-arrow"}}</a>
+  <div class="patient-banner-actions">
+    <a class="btn btn-secondary btn-sm" href="#health-timeline">View timeline {{template "icon-arrow"}}</a>
+    <a class="btn btn-primary btn-sm" href="#new-record">{{template "icon-plus"}}Add update</a>
+  </div>
   {{end}}
-</div>
+</section>
 {{end}}
 
 {{define "doctor-record-form"}}
-<section id="new-record" {{if .Patient.ID}}class="panel record-form-panel"{{end}}>
+<section id="new-record" {{if .Patient.ID}}class="card" aria-labelledby="record-form-title"{{end}}>
   {{if .Patient.ID}}
-  <div class="section-heading">
+  <div class="card-header">
     <div>
-      <p class="eyebrow compact-eyebrow">SHARE THE NEXT CHAPTER</p>
-      <h2>A care update for {{.Patient.Name}}</h2>
+      <p class="eyebrow">New care update</p>
+      <h2 class="card-title" id="record-form-title">Add to {{.Patient.Name}}'s chart</h2>
     </div>
-    <span class="small-icon">{{template "icon-record"}}</span>
+    <span class="card-icon tone-teal">{{template "icon-record"}}</span>
   </div>
-  <form id="record-form-{{.Patient.ID}}" class="record-form" action="/add-record" method="post"
+  <form id="record-form-{{.Patient.ID}}" class="form-stack" action="/add-record" method="post"
     data-indicator:_savingnote
     data-on:submit__prevent="$selectedpatient === '{{.Patient.ID}}' &amp;&amp; @post('/add-record', {contentType: 'form'})">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
@@ -51,26 +60,32 @@
     <input type="hidden" name="patient_id" value="{{.Patient.ID}}">
     <input type="hidden" name="filter_type" value="{{.Filter.Type}}" data-attr:value="$timelinetype">
     <input type="hidden" name="filter_category" value="{{.Filter.Category}}" data-attr:value="$timelinecat">
-    <fieldset class="record-fields" data-attr:disabled="$_savingnote || $selectedpatient !== '{{.Patient.ID}}'">
-      <label for="record-type-{{.Patient.ID}}">Type of update</label>
-      <select name="type" id="record-type-{{.Patient.ID}}">
-        <option value="note">Doctor's note</option>
-        <option value="prescription">Prescription</option>
-        <option value="imaging">Imaging &amp; scans</option>
-      </select>
-      <label for="record-content-{{.Patient.ID}}">Your note</label>
-      <textarea name="content" id="record-content-{{.Patient.ID}}" rows="4" minlength="3" maxlength="5000"
-        placeholder="Share observations, the next steps, or a treatment update. Your patient will see this in their timeline."
-        required></textarea>
-      <fieldset class="category-picker">
-        <legend>Body areas <span>Optional · lets the timeline be filtered by area</span></legend>
-        <div>{{range recordCategories}}<label><input type="checkbox" name="category" value="{{.ID}}"> {{.Name}}</label>{{end}}</div>
+    <fieldset class="form-stack plain-fieldset" data-attr:disabled="$_savingnote || $selectedpatient !== '{{.Patient.ID}}'">
+      <div class="field">
+        <label for="record-type-{{.Patient.ID}}">Type of update</label>
+        <select name="type" id="record-type-{{.Patient.ID}}">
+          <option value="note">Doctor's note</option>
+          <option value="prescription">Prescription</option>
+          <option value="imaging">Imaging &amp; scans</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="record-content-{{.Patient.ID}}">Clinical note</label>
+        <textarea name="content" id="record-content-{{.Patient.ID}}" rows="5" minlength="3" maxlength="5000"
+          aria-describedby="record-content-hint-{{.Patient.ID}}"
+          placeholder="Observations, next steps, or a treatment update…"
+          required></textarea>
+        <p class="hint" id="record-content-hint-{{.Patient.ID}}">Your patient sees this in their timeline, with a plain-language explanation.</p>
+      </div>
+      <fieldset class="plain-fieldset">
+        <legend class="field-legend">Body areas <span>Optional · enables filtering by area</span></legend>
+        <div class="check-chips">{{range recordCategories}}<label class="check-chip"><input type="checkbox" name="category" value="{{.ID}}"><span>{{.Name}}</span></label>{{end}}</div>
       </fieldset>
-      <div class="record-form-footer">
-        <span>{{template "icon-people"}} Shared instantly with your patient</span>
-        <button type="submit" class="button button-primary"
+      <div class="form-footer">
+        <span class="form-footer-note">{{template "icon-people"}}Shared instantly with your patient</span>
+        <button type="submit" class="btn btn-primary"
           data-attr:disabled="$_savingnote || $selectedpatient !== '{{.Patient.ID}}'">
-          Publish care update {{template "icon-arrow"}}
+          Publish update {{template "icon-arrow"}}
         </button>
       </div>
     </fieldset>
@@ -80,36 +95,37 @@
 {{end}}
 
 {{define "doctor-timeline"}}
-<section class="panel timeline-panel" id="health-timeline">
-  <div class="section-heading">
+<section class="card" id="health-timeline" aria-labelledby="timeline-title">
+  <div class="card-header">
     <div>
-      <h2>{{if .Patient.ID}}{{.Patient.Name}}'s timeline{{else}}Patient timeline{{end}}</h2>
-      <p class="section-subtitle">A shared view of the care you've given.</p>
+      <h2 class="card-title" id="timeline-title">{{if .Patient.ID}}{{.Patient.Name}}'s timeline{{else}}Patient timeline{{end}}</h2>
+      <p class="card-subtitle">Notes, prescriptions and imaging, newest first</p>
     </div>
-    <span class="subtle-tag"><span></span> Live</span>
+    <span class="status-chip status-live"><i aria-hidden="true"></i>Live</span>
   </div>
   {{template "timeline-filters" .}}
-  <div id="timeline" class="timeline-list doctor-timeline">{{template "timeline-items" .}}</div>
+  {{if .Patient.ID}}<div id="timeline" class="timeline scroll-area">{{template "timeline-items" .}}</div>
+  {{else}}<div id="timeline" class="timeline" hidden></div><div class="empty-state"><span class="empty-icon">{{template "icon-people"}}</span><strong>Select a patient</strong><p>Choose someone from My patients to see their shared care timeline.</p></div>{{end}}
 </section>
 {{end}}
 
 {{define "attention-panel"}}
-<section class="panel attention-card" id="attention">
-  <div class="section-heading">
+<section class="card" id="attention" aria-labelledby="attention-title">
+  <div class="card-header">
     <div>
-      <h2>Needs attention</h2>
-      <p class="section-subtitle">Latest check-ins with pain 6+ or mobility/energy 4 or below, most urgent first.</p>
-    </div>{{if .AttentionCount}}<span class="attention-total" aria-label="{{.AttentionCount}} patients flagged">{{.AttentionCount}}</span>{{end}}
+      <h2 class="card-title" id="attention-title">Needs attention</h2>
+      <p class="card-subtitle">Pain 6+ or mobility/energy 4 or below, most urgent first</p>
+    </div>{{if .AttentionCount}}<span class="count-pill count-pill-danger" aria-label="{{.AttentionCount}} patients flagged">{{.AttentionCount}}</span>{{end}}
   </div>
   {{if .Attention}}<ul class="attention-list">{{range .Attention}}
     <li><a class="attention-item" href="/dashboard/doctor/{{$.Profile.ID}}?patient={{.PatientID}}"
       data-on:click__prevent="!$_savingnote &amp;&amp; ($selectedpatient = '{{.PatientID}}')"
       data-class:chosen="$selectedpatient === '{{.PatientID}}'">
-      <span class="avatar avatar-sage">{{initials .Name}}</span>
-      <span class="attention-details"><strong>{{.Name}}</strong><small>{{label .StatusType}} {{.Value}}/10 &middot; {{shortDate .Timestamp}}</small></span>
-      <span class="attention-score attention-{{.StatusType}}">{{.Value}}</span></a></li>{{end}}
+      <span class="avatar avatar-sm">{{initials .Name}}</span>
+      <span class="attention-details"><strong>{{.Name}}</strong><small>{{if eq .StatusType "pain"}}High pain{{else if eq .StatusType "mobility"}}Low mobility{{else}}Low energy{{end}} &middot; {{shortDate .Timestamp}}</small></span>
+      <span class="severity severity-{{.StatusType}}" aria-label="{{label .StatusType}} {{.Value}} out of 10">{{template "icon-alert"}}{{.Value}}<small>/10</small></span></a></li>{{end}}
   </ul>
-  {{if gt .AttentionCount (len .Attention)}}<p class="form-hint">Showing the {{len .Attention}} most urgent of {{.AttentionCount}} flagged patients.</p>{{end}}
-  {{else}}<p class="attention-empty">{{template "icon-check"}} No concerning check-ins right now. Patients appear here as soon as they report high pain or low mobility or energy.</p>{{end}}
+  {{if gt .AttentionCount (len .Attention)}}<p class="hint">Showing the {{len .Attention}} most urgent of {{.AttentionCount}} flagged patients.</p>{{end}}
+  {{else}}<div class="empty-state empty-compact empty-success"><span class="empty-icon">{{template "icon-check"}}</span><strong>No concerning check-ins</strong><p>Patients appear here as soon as they report high pain or low mobility or energy.</p></div>{{end}}
 </section>
 {{end}}

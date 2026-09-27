@@ -3,7 +3,7 @@
 <html lang="en">
 
 <head>
-  <title>Your health overview · ClearChart</title>{{template "head"}}
+  <title>My health · ClearChart</title>{{template "head"}}
 </head>
 
 <body><a class="skip-link" href="#main-content">Skip to content</a>
@@ -12,112 +12,91 @@
     data-effect="$timelinetype; $timelinecat; @get('/events/patient/{{.Profile.ID}}?view={{.ViewID}}', {openWhenHidden: true, filterSignals: {include: /^timeline(type|cat)$/}})">
     {{template "sidebar" .}}<div class="workspace" data-signals="{_notifOpen: false}">{{template "topbar" .}}
       <main id="main-content" class="main-content">
-        <div class="page-heading">
+        <div class="page-header">
           <div>
-            <p class="eyebrow">A LITTLE CLARITY. A LOT OF CONFIDENCE.</p>
-            <h1>Your health, <em>all together.</em></h1>
-            <p class="page-description">Welcome back, {{.Profile.Name}}. Here's the full picture of your care.</p>
-          </div><a class="button button-primary" href="#patient-uploads">{{template "icon-upload"}} Upload a report</a>
-        </div>
-        <section class="welcome-banner" aria-label="Your shared care workspace">
-          <div class="banner-copy"><span class="banner-kicker"><span class="little-star">✳</span> CARE THAT KEEPS YOU IN
-              THE LOOP</span>
-            <h2>You're part of the conversation.</h2>
-            <p>Every note, every update, every step forward.<br>Your health story belongs to you, too.</p><a
-              href="#health-timeline">Explore your health timeline {{template "icon-arrow"}}</a>
+            <p class="eyebrow">My health</p>
+            <h1 class="page-title">Welcome back, {{.Profile.Name}}</h1>
+            <p class="page-subtitle">Everything your care team has shared, and how your recovery is going.</p>
           </div>
-          <div class="banner-art" aria-hidden="true"><svg viewBox="0 0 280 210" fill="none">
-              <circle cx="160" cy="105" r="94" stroke="#bdcdb4" stroke-width="1" />
-              <circle cx="160" cy="105" r="69" stroke="#bdcdb4" stroke-width="1" />
-              <circle cx="160" cy="105" r="44" stroke="#bdcdb4" stroke-width="1" />
-              <path d="M160 161V90" stroke="#406851" stroke-width="3" stroke-linecap="round" />
-              <path d="M160 124c-40 0-60-24-56-54 34-1 57 20 56 54Z" fill="#92ad80" />
-              <path d="M160 107c0-42 24-62 54-58 1 35-19 59-54 58Z" fill="#527a5a" />
-              <path d="m118 82 42 42m0-17 40-43" stroke="#e7eedd" stroke-width="1.5" />
-              <circle cx="84" cy="151" r="23" fill="#f9faf3" />
-              <path d="m75 151 6 6 12-13" stroke="#476d50" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path d="m224 118 3 8 8 3-8 3-3 8-3-8-8-3 8-3 3-8Z" fill="#769669" />
+          <div class="page-actions"><a class="btn btn-secondary" href="#healing-panel">{{template "icon-activity"}}Log a check-in</a><a class="btn btn-primary" href="#patient-uploads">{{template "icon-upload"}}Share a report</a></div>
+        </div>
+        <section class="hero-card" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <span class="hero-kicker">{{template "icon-shield"}}Your chart, shared with you</span>
+            <h2 id="hero-title">You're part of the conversation.</h2>
+            <p>Every note, prescription and scan your care team adds appears here in real time, with a plain-language explanation.</p>
+            <a class="btn btn-light btn-sm" href="#health-timeline">Explore your timeline {{template "icon-arrow"}}</a>
+          </div>
+          <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 240 180" fill="none">
+              <rect x="38" y="22" width="150" height="124" rx="18" fill="#ffffff" fill-opacity=".14" />
+              <rect x="56" y="40" width="150" height="124" rx="18" fill="#ffffff" fill-opacity=".95" />
+              <rect x="74" y="60" width="62" height="8" rx="4" fill="#214b3b" fill-opacity=".85" />
+              <rect x="74" y="76" width="96" height="6" rx="3" fill="#d3e0c6" />
+              <path d="M74 122h20l8-18 12 32 10-22 7 8h39" stroke="#527a5a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+              <circle cx="196" cy="44" r="20" fill="#eef4e6" />
+              <path d="m187 44 6 6 11-12" stroke="#3f6b33" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
             </svg></div>
         </section>
-        <div class="summary-strip">
-          <div class="summary-item"><span class="summary-icon sage">{{template "icon-record"}}</span>
-            <div><strong id="record-count">{{.RecordCount}}</strong><span>Shared health records</span></div><a
-              href="#health-timeline" aria-label="View health records">↗</a>
-          </div>
-          <div class="summary-item"><span class="summary-icon peach">{{template "icon-people"}}</span>
-            <div><strong>{{len .Doctors}} <small>by your side</small></strong><span>Connected care providers</span>
-            </div><a href="#care-team" aria-label="View care team">↗</a>
-          </div>
-          <div class="summary-item"><span class="summary-icon lavender">{{template "icon-upload"}}</span>
-            <div><strong id="upload-count">{{.UploadCount}}</strong><span>Documents you've shared</span></div><a
-              href="#patient-uploads" aria-label="View your documents">↗</a>
-          </div>
+        <div class="stat-grid">
+          <a class="stat-card stat-link" href="#health-timeline"><span class="stat-icon tone-teal">{{template "icon-record"}}</span><div><span class="stat-label">Shared health records</span><strong id="record-count">{{.RecordCount}}</strong></div>{{template "icon-chevron"}}</a>
+          <a class="stat-card stat-link" href="#care-team"><span class="stat-icon tone-blue">{{template "icon-people"}}</span><div><span class="stat-label">Care providers</span><strong>{{len .Doctors}}</strong></div>{{template "icon-chevron"}}</a>
+          <a class="stat-card stat-link" href="#patient-uploads"><span class="stat-icon tone-violet">{{template "icon-upload"}}</span><div><span class="stat-label">Documents you've shared</span><strong id="upload-count">{{.UploadCount}}</strong></div>{{template "icon-chevron"}}</a>
         </div>
         <div id="form-feedback" role="status" aria-live="polite"></div>
         <div class="dashboard-grid">
           <div class="main-column">
-            <section class="panel timeline-panel" id="health-timeline">
-              <div class="section-heading">
+            <section class="card" id="health-timeline" aria-labelledby="timeline-title">
+              <div class="card-header">
                 <div>
-                  <h2>Your health timeline</h2>
-                  <p class="section-subtitle">The whole story. Always up to date.</p>
-                </div><span class="subtle-tag"><span></span> Shared with you</span>
+                  <h2 class="card-title" id="timeline-title">Your health timeline</h2>
+                  <p class="card-subtitle">Notes, prescriptions and imaging from your care team</p>
+                </div><span class="status-chip status-live"><i aria-hidden="true"></i>Live</span>
               </div>
               {{template "timeline-filters" .}}
-              <div id="timeline" class="timeline-list">{{template "timeline-items" .}}</div>
-              <div class="timeline-end"><span></span> Your story, connected <span></span></div>
+              <div id="timeline" class="timeline">{{template "timeline-items" .}}</div>
             </section>
           </div>
           <aside class="secondary-column" aria-label="Your care at a glance">
             {{template "healing-panel" .}}
             {{template "ai-summary" .}}
-            <section class="panel uploads-panel" id="patient-uploads">
-              <div class="section-heading">
+            <section class="card" id="patient-uploads" aria-labelledby="uploads-title">
+              <div class="card-header">
                 <div>
-                  <h2>Your documents</h2>
-                  <p class="section-subtitle">Bring the rest of your health story into view.</p>
-                </div><span class="small-icon">{{template "icon-upload"}}</span>
+                  <h2 class="card-title" id="uploads-title">My documents</h2>
+                  <p class="card-subtitle">Share lab results or outside records</p>
+                </div><span class="card-icon tone-violet">{{template "icon-upload"}}</span>
               </div>
-              <form data-indicator:_savingupload class="upload-form" method="post" action="/upload-report"
+              <form data-indicator:_savingupload class="form-stack" method="post" action="/upload-report"
                 enctype="multipart/form-data" data-on:submit__prevent="@post('/upload-report', {contentType: 'form'})">
                 <input type="hidden" name="patient_id" value="{{.Profile.ID}}"><input type="hidden" name="csrf"
                   value="{{.CSRF}}"><input type="hidden" name="view_id" value="{{.ViewID}}">
-                <div class="upload-dropzone"><span class="upload-circle">{{template "icon-upload"}}</span><label
-                    for="report-file">Share a report with your care team</label>
-                  <p>Lab results, outside records, or a recent health update</p><input type="file" name="report"
+                <div class="dropzone"><span class="dropzone-icon">{{template "icon-upload"}}</span><label
+                    for="report-file">Choose a report to share</label>
+                  <p>PDF, PNG or JPG, up to 5 MB</p><input type="file" name="report"
                     id="report-file" accept=".pdf,.png,.jpg,.jpeg" required aria-describedby="upload-note">
-                  <p id="upload-note" class="file-note">PDF, PNG, or JPG, up to 5 MB. Only the filename is saved; file
-                    contents are not stored.</p>
-                </div><button type="submit" data-attr:disabled="$_savingupload"
-                  class="button button-primary button-small">Share document {{template "icon-arrow"}}</button>
+                </div>
+                <p id="upload-note" class="hint">{{template "icon-lock"}}Only the filename is saved; file contents are not stored.</p>
+                <button type="submit" data-attr:disabled="$_savingupload"
+                  class="btn btn-primary btn-block">Share document {{template "icon-arrow"}}</button>
               </form>
-              <ul id="uploads" class="uploads-list">{{range .Uploads}}{{template "upload" .}}{{end}}</ul>
+              <ul id="uploads" class="file-list scroll-area">{{range .Uploads}}{{template "upload" .}}{{end}}</ul>
             </section>
-            <section class="panel care-team-card" id="care-team">
-              <div class="section-heading">
-                <h2>My care team</h2><span class="team-count">{{len .Doctors}}</span>
+            <section class="card" id="care-team" aria-labelledby="care-team-title">
+              <div class="card-header">
+                <div><h2 class="card-title" id="care-team-title">My care team</h2><p class="card-subtitle">Providers with access to your chart</p></div>
+                <span class="count-pill">{{len .Doctors}}</span>
               </div>
-              <p class="section-subtitle">Good care is a team effort.</p>
-              <div class="care-team-list">{{range $index, $doctor := .Doctors}}<div class="care-provider"><span
-                    class="avatar doctor-avatar {{if eq $index 1}}avatar-lilac{{else}}avatar-peach{{end}}">{{initials
-                    .Name}}</span>
-                  <div><strong>{{.Name}}</strong><span>{{.Specialization}}</span><small><i></i> Connected to your
-                      care</small></div>
-                </div>{{else}}<p class="muted-copy">Your providers will appear here once your care team is connected.</p>{{end}}</div>
-              <div class="team-footer">{{template "icon-check"}} One team. One shared picture.</div>
+              <ul class="provider-list">{{range .Doctors}}<li class="provider-row"><span
+                    class="avatar avatar-md">{{initials .Name}}</span>
+                  <div><strong>{{.Name}}</strong><span>{{.Specialization}}</span></div><span class="badge badge-success">{{template "icon-check"}}Connected</span>
+                </li>{{else}}<li class="empty-state empty-compact"><span class="empty-icon">{{template "icon-people"}}</span><strong>No providers yet</strong><p>Your providers appear here once you accept their invitation.</p></li>{{end}}</ul>
             </section>
-            <div class="privacy-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                aria-hidden="true">
-                <path d="m12 3 8 3v6c0 4-4 7-8 9-4-2-8-5-8-9V6l8-3Z" />
-                <path d="m8 12 3 3 5-6" />
-              </svg>
-              <p>Your records, in one shared picture.<br><span>Your care team can see the updates you share.</span></p>
+            <div class="trust-note">{{template "icon-shield"}}
+              <p><strong>Your records, one shared picture.</strong><span>Your care team can see the check-ins and documents you share.</span></p>
             </div>
           </aside>
         </div>
-        <footer class="page-footer"><span>Made for a more connected kind of care.</span><span>ClearChart ©
-            {{.Today.Year}}</span></footer>
+        <footer class="page-footer"><span>ClearChart · Connected care for patients and providers</span><span>© {{.Today.Year}}</span></footer>
       </main>
     </div>
   </div>

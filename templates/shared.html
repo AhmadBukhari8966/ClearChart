@@ -1,126 +1,168 @@
 {{define "head"}}
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#193f35">
+<meta name="theme-color" content="#193f33">
 <meta name="description" content="ClearChart brings your care team, health records, and recovery together in one clear picture.">
-<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v={{faviconVersion}}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.3/bundles/datastar.js"></script>
 <link rel="stylesheet" href="/static/styles.css?v={{cssVersion}}">
 {{end}}
 
-{{define "brand"}}<span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M16 5v22M5 16h22" stroke="currentColor" stroke-width="6" stroke-linecap="round"/><path d="m8 24 16-16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></span><span>clearchart<span class="brand-dot">.</span></span>{{end}}
-{{define "icon-grid"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3.5" y="3.5" width="6" height="6" rx="1.5"/><rect x="14.5" y="3.5" width="6" height="6" rx="1.5"/><rect x="3.5" y="14.5" width="6" height="6" rx="1.5"/><rect x="14.5" y="14.5" width="6" height="6" rx="1.5"/></svg>{{end}}
-{{define "icon-record"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>{{end}}
-{{define "icon-people"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6M17 14a5 5 0 0 1 4 5v2"/></svg>{{end}}
-{{define "icon-heart"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z"/><path d="M3 11h5l2-3 3 7 2-4h6"/></svg>{{end}}
-{{define "icon-upload"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>{{end}}
-{{define "icon-arrow"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>{{end}}
-{{define "icon-check"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>{{end}}
-{{define "icon-spark"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3ZM20 2v4m-2-2h4"/></svg>{{end}}
+{{define "brand"}}<span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M16 5v22M5 16h22" stroke="currentColor" stroke-width="6" stroke-linecap="round"/><path d="m8 24 16-16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></span><span class="brand-name">clearchart<span class="brand-dot">.</span></span>{{end}}
+
+{{/* Icon set: 24px grid, 1.75 stroke, currentColor. */}}
+{{define "icon-grid"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>{{end}}
+{{define "icon-record"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>{{end}}
+{{define "icon-people"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></svg>{{end}}
+{{define "icon-heart"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z"/></svg>{{end}}
+{{define "icon-activity"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>{{end}}
+{{define "icon-upload"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3m-5 5 5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>{{end}}
+{{define "icon-arrow"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>{{end}}
+{{define "icon-back"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m5-5-5 5 5 5"/></svg>{{end}}
+{{define "icon-chevron"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>{{end}}
+{{define "icon-check"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg>{{end}}
+{{define "icon-spark"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.3 5.7L20 11l-5.7 2.3L12 19l-2.3-5.7L4 11l5.7-2.3L12 3ZM19 17v4m-2-2h4"/></svg>{{end}}
+{{define "icon-plus"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>{{end}}
+{{define "icon-mail"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg>{{end}}
+{{define "icon-search"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>{{end}}
+{{define "icon-alert"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 2.5 17.5A2 2 0 0 0 4.2 20.5h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9.5v4.5M12 17.2h.01"/></svg>{{end}}
+{{define "icon-shield"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 3v6c0 4.5-3.4 7.7-8 9-4.6-1.3-8-4.5-8-9V6l8-3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>{{end}}
+{{define "icon-pill"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.5 20.5a5 5 0 0 1-7-7l7-7a5 5 0 0 1 7 7l-7 7ZM7 10l7 7"/></svg>{{end}}
+{{define "icon-scan"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.5"/></svg>{{end}}
+{{define "icon-bell"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>{{end}}
+{{define "icon-logout"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/></svg>{{end}}
+{{define "icon-calendar"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>{{end}}
+{{define "icon-x"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>{{end}}
+{{define "icon-lock"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>{{end}}
 
 {{define "sidebar"}}
-<aside class="sidebar">
-  <a class="brand" href="/" aria-label="ClearChart home">{{template "brand"}}</a>
-  <div class="workspace-label">{{if eq .Profile.Role "doctor"}}PROVIDER WORKSPACE{{else}}YOUR HEALTH SPACE{{end}}</div>
-  <nav class="main-nav" aria-label="Main navigation">
-    <a class="nav-link active" href="{{if eq .Profile.Role "doctor"}}/dashboard/doctor/{{.Profile.ID}}{{else}}/dashboard/patient/{{.Profile.ID}}{{end}}" aria-current="page">{{template "icon-grid"}}<span>Overview</span><span class="nav-active-dot"></span></a>
+<aside class="sidebar" aria-label="Workspace">
+  <div class="sidebar-top">
+    <a class="brand" href="/" aria-label="ClearChart home">{{template "brand"}}</a>
+    <form class="sidebar-signout-compact" method="post" action="/logout" target="_top"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit" class="icon-button" aria-label="Sign out">{{template "icon-logout"}}</button></form>
+  </div>
+  <p class="nav-section-label">{{if eq .Profile.Role "doctor"}}Provider workspace{{else}}My health{{end}}</p>
+  <nav class="nav" aria-label="Main navigation">
+    <a class="nav-link active" href="{{if eq .Profile.Role "doctor"}}/dashboard/doctor/{{.Profile.ID}}{{else}}/dashboard/patient/{{.Profile.ID}}{{end}}" aria-current="page">{{template "icon-grid"}}<span>Overview</span></a>
     {{if eq .Profile.Role "doctor"}}
-    <a class="nav-link" href="/invitations">{{template "icon-people"}}<span>Invite patients</span></a>
-    <a class="nav-link" href="#my-patients">{{template "icon-people"}}<span>My patients</span></a>
+    <a class="nav-link" href="#my-patients">{{template "icon-people"}}<span>My patients</span><span class="nav-count">{{len .Patients}}</span></a>
+    <a class="nav-link" href="#attention">{{template "icon-alert"}}<span>Needs attention</span>{{if .AttentionCount}}<span class="nav-count nav-count-alert">{{.AttentionCount}}</span>{{end}}</a>
     <a class="nav-link" href="#reports-center">{{template "icon-record"}}<span>Patient reports</span></a>
-    <a class="nav-link" href="#attention">{{template "icon-heart"}}<span>Needs attention</span>{{if .AttentionCount}}<span class="nav-count">{{.AttentionCount}}</span>{{end}}</a>
+    <a class="nav-link" href="/invitations">{{template "icon-mail"}}<span>Invitations</span></a>
     {{else}}
     <a class="nav-link" href="#health-timeline">{{template "icon-record"}}<span>Health timeline</span></a>
-    <a class="nav-link" href="#care-team">{{template "icon-people"}}<span>My care team</span><span class="nav-count">{{len .Doctors}}</span></a>
+    <a class="nav-link" href="#healing-panel">{{template "icon-activity"}}<span>Healing status</span></a>
     <a class="nav-link" href="#patient-uploads">{{template "icon-upload"}}<span>My documents</span></a>
-    <a class="nav-link" href="#healing-panel">{{template "icon-heart"}}<span>Healing status</span></a>
+    <a class="nav-link" href="#care-team">{{template "icon-people"}}<span>Care team</span><span class="nav-count">{{len .Doctors}}</span></a>
     {{end}}
   </nav>
-  <div class="sidebar-bottom">
-    <div class="ownership-note"><span class="ownership-icon">{{template "icon-spark"}}</span><h3>A clearer kind of care.</h3><p>Your records. Your voice.<br>Everyone on the same page.</p></div>
-    <form method="post" action="/logout" target="_top"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit" class="new-profile-link w-full bg-transparent border-0 text-left">Sign out <span aria-hidden="true">&rarr;</span></button></form>
-    <div class="sidebar-profile"><span class="avatar avatar-sage">{{initials .Profile.Name}}</span><div><strong>{{.Profile.Name}}</strong><span>{{if eq .Profile.Role "doctor"}}Provider account{{else}}Patient account{{end}}</span></div><span class="profile-check">{{template "icon-check"}}</span></div>
-    <p class="sidebar-disclosure">YOUR CONNECTED CARE WORKSPACE</p>
+  <div class="sidebar-footer">
+    <div class="sidebar-callout"><span class="sidebar-callout-icon">{{template "icon-shield"}}</span><div><strong>{{if eq .Profile.Role "doctor"}}Consent-based access{{else}}You control access{{end}}</strong><p>{{if eq .Profile.Role "doctor"}}Charts open only after a patient accepts your invitation.{{else}}Providers see your chart only after you accept their invitation.{{end}}</p></div></div>
+    <div class="user-card"><span class="avatar avatar-md">{{initials .Profile.Name}}</span><div class="user-card-text"><strong>{{.Profile.Name}}</strong><span>{{if eq .Profile.Role "doctor"}}{{if .Profile.Specialization}}{{.Profile.Specialization}}{{else}}Provider{{end}}{{else}}Patient{{end}}</span></div>
+      <form method="post" action="/logout" target="_top"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit" class="icon-button" aria-label="Sign out" title="Sign out">{{template "icon-logout"}}</button></form>
+    </div>
   </div>
 </aside>
 {{end}}
 
 {{define "topbar"}}
 <header class="topbar">
-  <div class="breadcrumb">My workspace <span>/</span> <strong>Overview</strong></div>
+  <nav class="breadcrumb" aria-label="Breadcrumb"><span>{{if eq .Profile.Role "doctor"}}Provider workspace{{else}}My health{{end}}</span>{{template "icon-chevron"}}<strong aria-current="page">Overview</strong></nav>
   <div class="topbar-actions">
-    <span class="live-tag"><i></i> Live updates</span>
-    <span class="topbar-divider"></span>
-    <time>{{date .Today}}</time>
+    <span class="status-chip status-live"><i aria-hidden="true"></i>Live updates</span>
+    <span class="topbar-date">{{template "icon-calendar"}}<time>{{date .Today}}</time></span>
     {{template "notification-bell" .}}
-    <span class="avatar avatar-small">{{initials .Profile.Name}}</span>
+    <span class="avatar avatar-sm topbar-avatar" title="{{.Profile.Name}}">{{initials .Profile.Name}}</span>
   </div>
 </header>
 <div class="notif-backdrop" data-show="$_notifOpen" data-on:click="$_notifOpen = false" aria-hidden="true"></div>
 <div id="notification-panel" class="notif-panel" data-show="$_notifOpen" role="dialog" aria-label="Notification center"></div>
 {{end}}
 
+{{define "simple-header"}}
+<header class="simple-header">
+  <a class="brand" href="/" aria-label="ClearChart home">{{template "brand"}}</a>
+  <div class="simple-header-actions">
+    {{if .Profile.ID}}<a class="btn btn-ghost btn-sm" href="/dashboard/{{.Profile.Role}}/{{.Profile.ID}}">{{template "icon-back"}}<span>Back to dashboard</span></a>{{end}}
+    <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit" class="btn btn-secondary btn-sm">{{template "icon-logout"}}<span>Sign out</span></button></form>
+  </div>
+</header>
+{{end}}
+
 {{define "record"}}
-<article class="timeline-item" id="record-{{.ID}}">
-  <div class="timeline-marker {{.Type}}">{{if eq .Type "prescription"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m9 15 6-6M5 19a5 5 0 0 1 0-7l7-7a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7 0ZM8.5 8.5l7 7"/></svg>{{else if eq .Type "imaging"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="12" cy="12" r="5"/><path d="M12 5v3m0 8v3M5 12h3m8 0h3"/></svg>{{else}}{{template "icon-record"}}{{end}}</div>
-  <div class="timeline-content">
-    <div class="record-meta"><span class="type-badge {{.Type}}">{{if eq .Type "prescription"}}Prescription{{else if eq .Type "imaging"}}Imaging & scans{{else}}Doctor's note{{end}}</span><time datetime="{{.Timestamp.Format "2006-01-02T15:04:05Z07:00"}}">{{shortDate .Timestamp}} <span>· {{clock .Timestamp}}</span></time></div>
-    <h3>{{if eq .Type "prescription"}}Your treatment plan{{else if eq .Type "imaging"}}A closer look at your recovery{{else}}An update from your care team{{end}}</h3>
+<article class="timeline-item tone-{{.Type}}" id="record-{{.ID}}">
+  <div class="timeline-marker" aria-hidden="true">{{if eq .Type "prescription"}}{{template "icon-pill"}}{{else if eq .Type "imaging"}}{{template "icon-scan"}}{{else}}{{template "icon-record"}}{{end}}</div>
+  <div class="timeline-card">
+    <div class="record-meta"><span class="badge badge-{{.Type}}">{{if eq .Type "prescription"}}Prescription{{else if eq .Type "imaging"}}Imaging &amp; scans{{else}}Doctor's note{{end}}</span><time datetime="{{.Timestamp.Format "2006-01-02T15:04:05Z07:00"}}">{{shortDate .Timestamp}}<span> · {{clock .Timestamp}}</span></time></div>
+    <h3 class="record-title">{{if eq .Type "prescription"}}Treatment plan{{else if eq .Type "imaging"}}Imaging review{{else}}Care update{{end}}</h3>
     <p class="record-body">{{.Content}}</p>
-    {{if .Categories}}<ul class="record-categories" aria-label="Body areas">{{range .Categories}}<li>{{categoryName .}}</li>{{end}}</ul>{{end}}
-    {{if eq .Type "imaging"}}<a class="scan-preview" href="{{if .ImageURL}}{{.ImageURL}}{{else}}/static/ct-scan.svg{{end}}" target="_blank" rel="noopener noreferrer"><img src="{{if .ImageURL}}{{.ImageURL}}{{else}}/static/ct-scan.svg{{end}}" alt="Illustrative CT scan placeholder, not a diagnostic image" loading="lazy"><div><strong>Imaging preview</strong><span>Illustrative demo image</span><span class="scan-open">View image ↗</span></div></a>{{end}}
-    <div class="record-footer"><span class="avatar avatar-tiny {{if eq .Type "prescription"}}avatar-lilac{{end}}">{{initials .DoctorName}}</span><span>{{.DoctorName}}</span><span class="shared-mark">{{template "icon-check"}} Shared with you</span></div>
+    {{if .Categories}}<ul class="tag-list" aria-label="Body areas">{{range .Categories}}<li class="tag">{{categoryName .}}</li>{{end}}</ul>{{end}}
+    {{if eq .Type "imaging"}}<a class="scan-preview" href="{{if .ImageURL}}{{.ImageURL}}{{else}}/static/ct-scan.svg{{end}}" target="_blank" rel="noopener noreferrer"><img src="{{if .ImageURL}}{{.ImageURL}}{{else}}/static/ct-scan.svg{{end}}" alt="Illustrative CT scan placeholder, not a diagnostic image" loading="lazy"><span class="scan-preview-text"><strong>Imaging preview</strong><span>Illustrative demo image</span><span class="link-inline">Open image {{template "icon-arrow"}}</span></span></a>{{end}}
+    <div class="record-footer"><span class="avatar avatar-xs">{{initials .DoctorName}}</span><span class="record-author">{{.DoctorName}}</span><span class="record-shared">{{template "icon-check"}}Shared with care team</span></div>
   </div>
 </article>
 {{end}}
 
-{{define "upload"}}<li class="upload-row" id="upload-{{.ID}}"><span class="file-icon">{{template "icon-record"}}</span><div><strong>{{.FileName}}</strong><span>Added {{shortDate .Timestamp}} · Filename only</span></div><span class="file-shared" title="Shared with your care team">{{template "icon-check"}}</span></li>{{end}}
-{{define "report"}}<li class="upload-row report-row" id="report-{{.ID}}"><span class="file-icon">{{template "icon-record"}}</span><div><strong>{{.FileName}}</strong><span>{{.PatientName}} · {{shortDate .Timestamp}}</span></div><span class="type-badge note">Patient upload</span></li>{{end}}
+{{define "upload"}}<li class="file-row" id="upload-{{.ID}}"><span class="file-icon">{{template "icon-record"}}</span><div class="file-text"><strong>{{.FileName}}</strong><span>Added {{shortDate .Timestamp}} · Filename only</span></div><span class="file-status" title="Shared with your care team">{{template "icon-check"}}<span class="sr-only">Shared with your care team</span></span></li>{{end}}
+{{define "report"}}<li class="file-row" id="report-{{.ID}}"><span class="file-icon">{{template "icon-record"}}</span><div class="file-text"><strong>{{.FileName}}</strong><span>{{.PatientName}} · {{shortDate .Timestamp}}</span></div><span class="badge badge-neutral">Upload</span></li>{{end}}
 
 {{define "healing-panel"}}
-<section class="panel healing-card" id="healing-panel">
-  <div class="section-heading"><h2>Healing status</h2><span class="small-icon">{{template "icon-heart"}}</span></div>
-  <p class="section-subtitle">Small steps. Meaningful progress.</p>
-  <div class="healing-metrics">{{range .Healing}}<div class="healing-metric"><div><span>{{label .StatusType}}</span><strong>{{.Value}}<small> / 10</small></strong></div><div class="progress-track"><span class="progress-fill {{.StatusType}}" style="width: {{percent .Value}}%"></span></div><p>{{if eq .StatusType "pain"}}Lower means less pain{{else if eq .StatusType "mobility"}}Higher means easier movement{{else}}Your self-reported check-in{{end}} <span>{{shortDate .Timestamp}}</span></p></div>{{else}}<p class="muted-copy">Your first check-in starts your progress story.</p>{{end}}</div>
-  {{if eq .Profile.Role "patient"}}<details id="healing-checkin" data-ignore-morph class="checkin-details"><summary>How are you feeling today? <span>+</span></summary><form data-indicator:_savinghealing method="post" action="/healing" data-on:submit__prevent="@post('/healing', {contentType: 'form'})" class="checkin-form"><input type="hidden" name="patient_id" value="{{.Patient.ID}}"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="view_id" value="{{.ViewID}}"><div class="field-row"><label>Check-in<select name="status_type"><option value="pain">Pain level</option><option value="mobility">Mobility</option><option value="energy">Energy</option></select></label><label>Score (1–10)<input type="number" name="value" min="1" max="10" value="5" required></label></div><button class="button button-primary button-small" data-attr:disabled="$_savinghealing" type="submit">Save check-in {{template "icon-arrow"}}</button></form></details>{{end}}
+<section class="card" id="healing-panel" aria-labelledby="healing-title">
+  <div class="card-header"><div><h2 class="card-title" id="healing-title">Healing status</h2><p class="card-subtitle">Latest self-reported check-ins</p></div><span class="card-icon tone-teal">{{template "icon-activity"}}</span></div>
+  <div class="metric-list">{{range .Healing}}
+    <div class="metric metric-{{.StatusType}}">
+      <div class="metric-top"><span class="metric-label">{{label .StatusType}}</span>
+        {{if and (eq .StatusType "pain") (ge .Value 6)}}<span class="badge badge-danger">High</span>{{else if and (ne .StatusType "pain") (le .Value 4)}}<span class="badge badge-warning">Low</span>{{end}}
+        <strong class="metric-value">{{.Value}}<small>/10</small></strong></div>
+      <div class="progress" role="progressbar" aria-label="{{label .StatusType}}" aria-valuemin="0" aria-valuemax="10" aria-valuenow="{{.Value}}"><span style="width: {{percent .Value}}%"></span></div>
+      <p class="metric-hint"><span>{{if eq .StatusType "pain"}}Lower means less pain{{else if eq .StatusType "mobility"}}Higher means easier movement{{else}}Higher means more energy{{end}}</span><span>{{shortDate .Timestamp}}</span></p>
+    </div>{{else}}
+    <div class="empty-state empty-compact"><span class="empty-icon">{{template "icon-activity"}}</span><strong>No check-ins yet</strong><p>{{if eq .Profile.Role "patient"}}Your first check-in starts your progress story.{{else}}Check-ins appear here once the patient logs how they feel.{{end}}</p></div>{{end}}
+  </div>
+  {{if eq .Profile.Role "patient"}}<details id="healing-checkin" data-ignore-morph class="disclosure"><summary><span>{{template "icon-plus"}}How are you feeling today?</span>{{template "icon-chevron"}}</summary><form data-indicator:_savinghealing method="post" action="/healing" data-on:submit__prevent="@post('/healing', {contentType: 'form'})" class="form-stack"><input type="hidden" name="patient_id" value="{{.Patient.ID}}"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="view_id" value="{{.ViewID}}"><div class="field-row"><div class="field"><label for="checkin-type">Check-in</label><select id="checkin-type" name="status_type"><option value="pain">Pain level</option><option value="mobility">Mobility</option><option value="energy">Energy</option></select></div><div class="field"><label for="checkin-value">Score (1–10)</label><input id="checkin-value" type="number" name="value" min="1" max="10" value="5" required></div></div><button class="btn btn-primary btn-block" data-attr:disabled="$_savinghealing" type="submit">Save check-in {{template "icon-arrow"}}</button></form></details>{{end}}
 </section>
 {{end}}
 
 {{define "ai-summary"}}
-<section class="ai-card" id="ai-summary"><div class="ai-card-heading"><span class="ai-icon">{{template "icon-spark"}}</span><h2>A little more clarity</h2><span class="ai-label">AI ASSISTANCE</span></div><p class="ai-intro">Your care notes, in everyday language.</p>{{if .SummaryPending}}<div class="ai-thinking" role="status" aria-live="polite"><div class="ai-thinking-label"><span class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></span>Reading your doctor's note and putting it into simpler words…</div><div class="ai-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></div>{{else}}<div class="ai-summary-copy" role="status" aria-live="polite">{{.Summary}}</div>{{end}}<div class="ai-disclosure">{{template "icon-spark"}} {{if .SummaryAI}}AI-generated explanation of your latest note · Not medical advice, check with your doctor{{else if .SummaryPending}}AI is simplifying your latest note · This takes a few seconds{{else}}Automated summary · Rule-based, not medical advice{{end}}</div></section>
+<section class="card ai-card" id="ai-summary" aria-labelledby="ai-title">
+  <div class="card-header"><div><h2 class="card-title" id="ai-title">A little more clarity</h2><p class="card-subtitle">Your latest note, in everyday language</p></div><span class="badge badge-ai">{{template "icon-spark"}}AI assist</span></div>
+  {{if .SummaryPending}}<div class="ai-thinking" role="status" aria-live="polite"><div class="ai-thinking-label"><span class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></span>Reading your doctor's note and putting it into simpler words…</div><div class="skeleton" aria-hidden="true"><span></span><span></span><span></span></div></div>{{else}}<div class="ai-summary-copy" role="status" aria-live="polite">{{.Summary}}</div>{{end}}
+  <p class="ai-disclosure">{{template "icon-shield"}}<span>{{if .SummaryAI}}AI-generated explanation of your latest note. Not medical advice; check with your doctor.{{else if .SummaryPending}}AI is simplifying your latest note. This takes a few seconds.{{else}}Automated, rule-based summary. Not medical advice.{{end}}</span></p>
+</section>
 {{end}}
 
 {{define "timeline-filters"}}
 <div id="timeline-filters" class="timeline-filters">
   {{if .Patient.ID}}
-  <nav class="timeline-tabs" aria-label="Filter by record type">
+  <nav class="segmented" aria-label="Filter by record type">
     <button type="button" class="{{if eq .Filter.Type ""}}selected{{end}}" aria-pressed="{{if eq .Filter.Type ""}}true{{else}}false{{end}}" data-class:selected="$timelinetype === ''" data-on:click="$timelinetype = ''">All types</button>
-    <button type="button" class="{{if eq .Filter.Type "note"}}selected{{end}}" aria-pressed="{{if eq .Filter.Type "note"}}true{{else}}false{{end}}" data-class:selected="$timelinetype === 'note'" data-on:click="$timelinetype = 'note'">Doctor's notes</button>
+    <button type="button" class="{{if eq .Filter.Type "note"}}selected{{end}}" aria-pressed="{{if eq .Filter.Type "note"}}true{{else}}false{{end}}" data-class:selected="$timelinetype === 'note'" data-on:click="$timelinetype = 'note'">Notes</button>
     <button type="button" class="{{if eq .Filter.Type "prescription"}}selected{{end}}" aria-pressed="{{if eq .Filter.Type "prescription"}}true{{else}}false{{end}}" data-class:selected="$timelinetype === 'prescription'" data-on:click="$timelinetype = 'prescription'">Prescriptions</button>
     <button type="button" class="{{if eq .Filter.Type "imaging"}}selected{{end}}" aria-pressed="{{if eq .Filter.Type "imaging"}}true{{else}}false{{end}}" data-class:selected="$timelinetype === 'imaging'" data-on:click="$timelinetype = 'imaging'">Imaging</button>
   </nav>
-  <nav class="category-filters" aria-label="Filter by body area">
-    <button type="button" class="{{if eq .Filter.Category ""}}selected{{end}}" aria-pressed="{{if eq .Filter.Category ""}}true{{else}}false{{end}}" data-class:selected="$timelinecat === ''" data-on:click="$timelinecat = ''">All categories</button>
-    {{range recordCategories}}<button type="button" class="{{if eq $.Filter.Category .ID}}selected{{end}}" aria-pressed="{{if eq $.Filter.Category .ID}}true{{else}}false{{end}}" data-class:selected="$timelinecat === '{{.ID}}'" data-on:click="$timelinecat = '{{.ID}}'">{{.Name}}</button>
+  <nav class="chip-row" aria-label="Filter by body area">
+    <button type="button" class="chip {{if eq .Filter.Category ""}}selected{{end}}" aria-pressed="{{if eq .Filter.Category ""}}true{{else}}false{{end}}" data-class:selected="$timelinecat === ''" data-on:click="$timelinecat = ''">All areas</button>
+    {{range recordCategories}}<button type="button" class="chip {{if eq $.Filter.Category .ID}}selected{{end}}" aria-pressed="{{if eq $.Filter.Category .ID}}true{{else}}false{{end}}" data-class:selected="$timelinecat === '{{.ID}}'" data-on:click="$timelinecat = '{{.ID}}'">{{.Name}}</button>
     {{end}}
   </nav>
-  <p class="timeline-status" role="status" aria-live="polite">
-    Showing <strong>{{len .Records}}</strong> of {{.RecordCount}} records
+  <p class="filter-status" role="status" aria-live="polite">
+    <span>Showing <strong>{{len .Records}}</strong> of {{.RecordCount}} records</span>
     <span class="filter-pill">{{if eq .Filter.Type "note"}}Doctor's notes{{else if eq .Filter.Type "prescription"}}Prescriptions{{else if eq .Filter.Type "imaging"}}Imaging{{else}}All types{{end}}</span>
-    <span class="filter-pill">{{if .Filter.Category}}{{categoryName .Filter.Category}}{{else}}All categories{{end}}</span>
-    {{if or .Filter.Type .Filter.Category}}<button type="button" class="clear-filters" data-on:click="$timelinetype = ''; $timelinecat = ''">Clear filters</button>{{end}}
+    <span class="filter-pill">{{if .Filter.Category}}{{categoryName .Filter.Category}}{{else}}All areas{{end}}</span>
+    {{if or .Filter.Type .Filter.Category}}<button type="button" class="link-button" data-on:click="$timelinetype = ''; $timelinecat = ''">{{template "icon-x"}}Clear filters</button>{{end}}
   </p>
   {{end}}
 </div>
 {{end}}
 
 {{define "timeline-items"}}{{range .Records}}{{template "record" .}}
-{{else}}{{if or .Filter.Type .Filter.Category}}<div class="timeline-empty" role="status">
-  <strong>No {{if eq .Filter.Type "note"}}doctor's notes{{else if eq .Filter.Type "prescription"}}prescriptions{{else if eq .Filter.Type "imaging"}}imaging records{{else}}records{{end}}{{if .Filter.Category}} tagged {{categoryName .Filter.Category}}{{end}} yet.</strong>
-  <p>Only records a clinician has explicitly tagged appear under a body area. Untagged records stay visible under All categories.</p>
-  <button type="button" class="clear-filters" data-on:click="$timelinetype = ''; $timelinecat = ''">Show all records</button>
+{{else}}{{if or .Filter.Type .Filter.Category}}<div class="empty-state" role="status">
+  <span class="empty-icon">{{template "icon-search"}}</span>
+  <strong>No {{if eq .Filter.Type "note"}}doctor's notes{{else if eq .Filter.Type "prescription"}}prescriptions{{else if eq .Filter.Type "imaging"}}imaging records{{else}}records{{end}}{{if .Filter.Category}} tagged {{categoryName .Filter.Category}}{{end}} yet</strong>
+  <p>Only records a clinician has explicitly tagged appear under a body area. Untagged records stay visible under All areas.</p>
+  <button type="button" class="btn btn-secondary btn-sm" data-on:click="$timelinetype = ''; $timelinecat = ''">Show all records</button>
 </div>{{end}}{{end}}{{end}}

@@ -2,23 +2,34 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Invite a patient · ClearChart</title>
+  <title>Invitations · ClearChart</title>
   {{template "head"}}
 </head>
-<body>
-  <main class="max-w-3xl mx-auto px-6 py-12">
-    <a class="brand" href="/">{{template "brand"}}</a>
-    <a class="back-link block my-6" href="/dashboard/doctor/{{.Profile.ID}}">← Back to my patients</a>
-    <h1>Care starts <em>with an invitation.</em></h1>
-    <p class="page-description my-4">Send a secure invitation directly to your patient's ClearChart account. Their chart becomes available only after they accept.</p>
-    
-    <section class="panel p-6 my-6">
-      <h2>Invite a patient</h2>
-      <div id="form-feedback" role="status" aria-live="polite"></div>
-      
-      {{template "invite-form" .}}
-    </section>
-
+<body class="simple-body">
+  {{template "simple-header" .}}
+  <main class="simple-main" id="main-content">
+    <div class="page-header">
+      <div>
+        <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/dashboard/doctor/{{.Profile.ID}}">Provider workspace</a>{{template "icon-chevron"}}<strong aria-current="page">Invitations</strong></nav>
+        <h1 class="page-title">Invite a patient</h1>
+        <p class="page-subtitle">Send a secure invitation to your patient's ClearChart account. Their chart becomes available only after they accept.</p>
+      </div>
+    </div>
+    <div id="form-feedback" role="status" aria-live="polite"></div>
+    <div class="split-grid">
+      <section class="card" aria-labelledby="invite-title">
+        <div class="card-header"><div><h2 class="card-title" id="invite-title">New invitation</h2><p class="card-subtitle">The patient must already have a ClearChart account</p></div><span class="card-icon tone-teal">{{template "icon-mail"}}</span></div>
+        {{template "invite-form" .}}
+      </section>
+      <section class="card how-card" aria-labelledby="how-title">
+        <h2 class="card-title" id="how-title">How invitations work</h2>
+        <ol class="steps-list">
+          <li><span>1</span><div><strong>Send</strong><p>The invitation appears instantly in the patient's notification center.</p></div></li>
+          <li><span>2</span><div><strong>Patient consents</strong><p>They review what will be shared and accept or decline.</p></div></li>
+          <li><span>3</span><div><strong>Chart opens</strong><p>Accepted patients appear under My patients. Invitations expire after 7 days.</p></div></li>
+        </ol>
+      </section>
+    </div>
     {{template "invitation-list" .}}
   </main>
 </body>
@@ -26,37 +37,52 @@
 {{end}}
 
 {{define "invite-form"}}
-<form id="invite-form" class="onboarding-form" method="post" action="/invitations" data-indicator:_inviting data-on:submit__prevent="@post('/invitations', {contentType: 'form'})">
+<form id="invite-form" class="form-stack" method="post" action="/invitations" data-indicator:_inviting data-on:submit__prevent="@post('/invitations', {contentType: 'form'})">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
-  <label for="invite-email">Patient's account email</label>
-  <input id="invite-email" name="email" type="email" maxlength="254" placeholder="patient@example.com" required>
-  <p class="form-hint">They will receive this invitation instantly in their notification center. Invitations expire in 7 days.</p>
-  <button class="button button-primary" type="submit" data-attr:disabled="$_inviting">Send invitation</button>
+  <div class="field">
+    <label for="invite-email">Patient's account email</label>
+    <input id="invite-email" name="email" type="email" maxlength="254" placeholder="patient@example.com" autocomplete="off" required aria-describedby="invite-hint">
+    <p class="hint" id="invite-hint">Invitations expire in 7 days.</p>
+  </div>
+  <button class="btn btn-primary" type="submit" data-attr:disabled="$_inviting">Send invitation {{template "icon-arrow"}}</button>
 </form>
 {{end}}
 
 {{define "invitation-list"}}
-<section class="panel p-6" id="invitation-list" data-signals="{_revoking: false}">
-  <h2>Recent invitations</h2>
-  <p class="muted-copy">Latest 100 invitations. Accepted patients appear in My Patients; refresh your dashboard after acceptance.</p>
-  
-  {{range .Invitations}}
-  <div class="border-b py-4 flex flex-wrap gap-4 items-center justify-between">
-    <div>
-      <strong>{{.Email}}</strong>
-      <p class="muted-copy">{{.Status}} · Expires {{date .ExpiresAt}}</p>
-    </div>
-    {{if eq .Status "pending"}}
-    <form method="post" action="/invitations/{{.ID}}/revoke" data-on:submit__prevent="@post('/invitations/{{.ID}}/revoke', {contentType: 'form'})" data-indicator:_revoking>
-      <input type="hidden" name="csrf" value="{{$.CSRF}}">
-      <button class="button button-small" type="submit" data-attr:disabled="$_revoking">Revoke</button>
-    </form>
-    {{end}}
+<section class="card" id="invitation-list" data-signals="{_revoking: false}" aria-labelledby="invitation-list-title">
+  <div class="card-header"><div><h2 class="card-title" id="invitation-list-title">Recent invitations</h2><p class="card-subtitle">Latest 100. Refresh your dashboard after a patient accepts.</p></div><span class="count-pill">{{len .Invitations}}</span></div>
+  {{if .Invitations}}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th scope="col">Patient email</th><th scope="col">Status</th><th scope="col">Expires</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+      {{range .Invitations}}
+      <tr>
+        <td data-label="Patient"><span class="cell-with-icon"><span class="avatar avatar-sm">{{template "icon-mail"}}</span><strong>{{.Email}}</strong></span></td>
+        <td data-label="Status"><span class="badge {{if eq .Status "accepted"}}badge-success{{else if eq .Status "pending"}}badge-warning{{else if eq .Status "declined"}}badge-danger{{else}}badge-neutral{{end}}"><i class="badge-dot" aria-hidden="true"></i>{{.Status}}</span></td>
+        <td data-label="Expires">{{date .ExpiresAt}}</td>
+        <td class="cell-actions">{{if eq .Status "pending"}}
+          <form method="post" action="/invitations/{{.ID}}/revoke" data-on:submit__prevent="@post('/invitations/{{.ID}}/revoke', {contentType: 'form'})" data-indicator:_revoking>
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <button class="btn btn-danger-ghost btn-sm" type="submit" data-attr:disabled="$_revoking">Revoke</button>
+          </form>{{end}}
+        </td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
   </div>
   {{else}}
-  <p class="muted-copy my-4">No invitations yet.</p>
+  <div class="empty-state"><span class="empty-icon">{{template "icon-mail"}}</span><strong>No invitations yet</strong><p>Invitations you send will be listed here with their status.</p></div>
   {{end}}
 </section>
+{{end}}
+
+{{define "invitation-complete"}}
+<div id="invitation-decision">
+  <div class="alert alert-success" role="status">{{template "icon-check"}}<span>{{.Message}}</span></div>
+  <a class="btn btn-primary" href="/dashboard/{{.Profile.Role}}/{{.Profile.ID}}">Go to my dashboard {{template "icon-arrow"}}</a>
+</div>
 {{end}}
 
 {{define "invitation-review.html"}}
@@ -67,40 +93,45 @@
   {{template "head"}}
   <meta name="referrer" content="no-referrer">
 </head>
-<body>
-  <main class="max-w-2xl mx-auto px-6 py-12">
-    <a class="brand" href="/">{{template "brand"}}</a>
-    <section class="panel p-8 my-8">
-      <p class="eyebrow">YOUR CARE. YOUR CHOICE.</p>
-      <h1>A new connection.</h1>
-      <h2 class="my-4">{{.Invitation.DoctorName}} invited you to their care team.</h2>
-      <p class="muted-copy">Accepting shares your existing and future chart records, report filenames, and healing check-ins with this doctor, and lets them add care notes, prescriptions, and imaging records. Declining grants no access.</p>
-      <p class="muted-copy my-4">Invitation expires {{date .Invitation.ExpiresAt}}. Signed in as {{.Profile.Email}}.</p>
+<body class="simple-body">
+  {{template "simple-header" .}}
+  <main class="simple-main simple-narrow" id="main-content">
+    <section class="card consent-card" aria-labelledby="consent-title">
+      <div class="consent-head">
+        <span class="avatar avatar-xl">{{initials .Invitation.DoctorName}}</span>
+        <div>
+          <p class="eyebrow">Care team invitation</p>
+          <h1 class="page-title" id="consent-title">{{.Invitation.DoctorName}} invited you to their care team</h1>
+        </div>
+      </div>
+      <div class="consent-body">
+        <h2 class="card-title">If you accept, this provider can</h2>
+        <ul class="consent-list">
+          <li>{{template "icon-record"}}<span>See your existing and future chart records</span></li>
+          <li>{{template "icon-activity"}}<span>See your healing check-ins and the filenames of reports you share</span></li>
+          <li>{{template "icon-pill"}}<span>Add care notes, prescriptions and imaging records</span></li>
+        </ul>
+        <p class="hint">{{template "icon-shield"}}Declining grants no access. Expires {{date .Invitation.ExpiresAt}} · Signed in as {{.Profile.Email}}</p>
+      </div>
       <div id="form-feedback" role="status" aria-live="polite"></div>
-      
       <div id="invitation-decision">
         {{if .CanRespond}}
-        <div class="flex flex-wrap gap-4 my-6" data-signals="{_responding: false}">
+        <div class="button-row" data-signals="{_responding: false}">
           <form method="post" action="/invitations/{{.Token}}" data-indicator:_responding data-on:submit__prevent="@post('/invitations/{{.Token}}', {contentType: 'form'})">
             <input type="hidden" name="csrf" value="{{.CSRF}}">
             <input type="hidden" name="decision" value="accept">
-            <button class="button button-primary" type="submit" data-attr:disabled="$_responding">Accept and share my chart</button>
+            <button class="btn btn-primary btn-lg" type="submit" data-attr:disabled="$_responding">{{template "icon-check"}}Accept and share my chart</button>
           </form>
           <form method="post" action="/invitations/{{.Token}}" data-indicator:_responding data-on:submit__prevent="@post('/invitations/{{.Token}}', {contentType: 'form'})">
             <input type="hidden" name="csrf" value="{{.CSRF}}">
             <input type="hidden" name="decision" value="decline">
-            <button class="button" type="submit" data-attr:disabled="$_responding">Decline</button>
+            <button class="btn btn-secondary btn-lg" type="submit" data-attr:disabled="$_responding">Decline</button>
           </form>
         </div>
         {{else}}
-        <p class="feedback my-6">{{.Message}}</p>
+        <div class="alert alert-info" role="status">{{template "icon-alert"}}<span>{{.Message}}</span></div>
         {{end}}
       </div>
-      <a class="back-link" href="/dashboard/{{.Profile.Role}}/{{.Profile.ID}}">Back to my dashboard</a>
-      <form class="mt-6" method="post" action="/logout">
-        <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <button class="back-link" type="submit">Sign out to use another account</button>
-      </form>
     </section>
   </main>
 </body>

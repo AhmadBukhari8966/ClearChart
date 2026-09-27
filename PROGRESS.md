@@ -1,7 +1,16 @@
 # Progress — 2026-09-26
 
 ## Current task
-Judge mode (2026-09-26). Builds and vets; temporary unit checks passed and were removed. NOT yet run against Supabase or clicked through in a browser.
+Full UI redesign (see "UI redesign"). Builds and vets; rendered and screenshotted with sample data. NOT yet run against Supabase or clicked through with live SSE.
+
+## UI redesign (2026-09-27, latest)
+- Whole UI moved to one healthcare design system: `static/styles.css` rewritten from scratch (tokens → base → components → shell → modules → auth/standalone → judge → responsive → motion). Original cream + forest-green palette (paper #f7f6ef, forest #214b3b, sage, peach/lavender accents; teal trial reverted at user request), Plus Jakarta Sans (replaces DM Sans/Instrument Serif), white cards (16px radius), 13px minimum text (old CSS went down to 5–8px), 44px inputs, visible focus rings, status shown by text + icon + color.
+- Shared components in `shared.html`: expanded icon set (search, alert, shield, pill, scan, bell, logout, calendar, mail, lock…), white sidebar with count/alert pills and a consent callout, breadcrumb topbar, `simple-header` for standalone pages. Reusable classes: `.btn*`, `.card*`, `.badge-*`, `.chip`, `.segmented`, `.status-chip`, `.empty-state`, `.facts`, `.data-table`, `.alert`, `.stat-card`, `.avatar-*`.
+- Doctor: stat cards, row-style patient directory ("Viewing" state), EHR-style patient banner (moved out of the directory card into the chart column; same `#selected-patient-summary` ID), record form with check-chips, timeline cards with typed markers, severity pills in Needs attention. Patient: gradient hero, linked stat cards, High/Low badges on healing metrics, provider rows. Auth/onboarding: split screen with a setup stepper. Invitations: card layout, how-it-works steps, status table that stacks into labelled rows on phones. Consent page lists what is shared. Notification icons are SVG, not emoji. Judge page restyled (JS untouched except the spotlight color). Original logo (cross-and-slash mark, lowercase "clearchart." wordmark) and favicon kept. Favicon link is now `favicon.svg?v=<content hash>` (`faviconVersion` in newApp) so browsers drop a cached icon.
+- **Bug fixed:** `respondInvitation` rendered a nonexistent `invitation-complete` template (the decision area was blanked). It is now defined in `invitations.html`.
+- Tailwind CDN is still loaded but no template uses utilities now. Its preflight is injected after `styles.css`, so button variants and form controls use slightly higher-specificity selectors. Do not name classes after Tailwind utilities (`.overline` was already hit).
+- All IDs, Datastar attributes, form field names and fragment names used by SSE/handlers are unchanged. The judge script still finds `.patient-option.chosen strong`.
+- Verified: vet/build. A temporary render test ran every page and fragment with sample data, including empty and filtered states (passed, then removed). Headless-Edge screenshots checked at 1440, 1280 and 920px, and at 390px in an iframe. NOT checked against Supabase or clicked through with live SSE.
 
 ## Patient directory active search (2026-09-27)
 - Doctor "My patients" renders at most 50 rows (`directoryLimit`, `directory.go`); a selected patient beyond the first page is pinned on top. Datastar active-search input (`patientsearch` signal, `data-on:input__debounce.200ms` → `GET /patients/search`) queries PostgreSQL (`SearchPatients`: linked patients, name/email ILIKE with escaped wildcards, `count(*) OVER()` for match total) and patches only `#patient-directory-results` (template `patient-directory` in doctor_fragments.html). Chart, form drafts and SSE stream untouched. Doctor ID comes from the session; no session → 403.
@@ -27,17 +36,6 @@ Judge mode (2026-09-26). Builds and vets; temporary unit checks passed and were 
 - `Dockerfile` (distroless, HOST=0.0.0.0, PORT=8080), `.dockerignore` (excludes .env, .tools, tests, seeds), `fly.toml` (app `clearchart-proud-shell-6676`, region sjc near Supabase us-west-2, 1 always-on machine). Secrets on Fly: DATABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.
 - `deploy.env` (committed, non-secret) is copied to `/app/.env` in the image; currently `JUDGE_MODE=true`. Fly secrets/env override it. Never put secrets there.
 - Linux cross-compile verified; Docker image build not verified locally (no Docker).
-
-## Visual polish (2026-09-26)
-- CSS-only block at the end of `static/styles.css` ("Visual polish"): softer panel shadows/radii, stronger section titles, serif stat numerals with doctor stats as separate cards, subtle header gradient, sticky topbar (solid bg, no backdrop-filter), hover lift on patient/attention/report cards, selected-patient accent, gradient buttons with press state, input focus rings and focus-visible outlines, rounded graded healing bars, timeline entry hover, thin scrollbars, one 0.35 s load entrance on page-level containers only (SSE patches never re-trigger it; reduced-motion honored).
-- No JS, images, fonts or templates changed. Screenshots checked at 1440px and 920px.
-
-## Layout balance (2026-09-26)
-- Dashboards use golden-ratio columns (`1.618fr / 1fr`, ≥821px) instead of a fixed narrow side column.
-- Doctor: "Invite a patient" moved into the header beside "Add a care update"; Patient reports center and profile card moved to the right column (Needs attention, Healing status, Reports, Profile, quote); doctor timeline scrolls inside its panel (max 640px).
-- Patient: plain-language card and Your documents moved to the right column (Healing, Clarity, Documents, Care team, privacy note); timeline has the left column to itself.
-- Side-column tweaks: heading icons stay on the title row, report "Patient upload" badges hidden, compact dropzone.
-- Verified with headless-Edge screenshots of real data at 1440px and 920px (judge pane width); temporary render test removed.
 
 ## Toast fix
 - Floating `#form-feedback` toast never hid. Now fades via CSS after 4 s (errors 8 s, paused on hover). All `#form-feedback` patches use Datastar `replace` mode (confirmed in v1.0.3 bundle) so each message restarts the timer. vet/build pass; not browser-tested.

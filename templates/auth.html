@@ -1,52 +1,62 @@
+{{define "auth-aside"}}
+<section class="auth-aside" aria-label="About ClearChart">
+  <a class="brand brand-inverse" href="/" aria-label="ClearChart home">{{template "brand"}}</a>
+  <div class="auth-aside-body">
+    <p class="eyebrow">Connected care</p>
+    <h1>One clear picture of care, for patients and providers.</h1>
+    <p>Share notes, prescriptions and imaging in real time, with plain-language explanations patients can understand.</p>
+    <ul class="auth-benefits">
+      <li><span>{{template "icon-record"}}</span><div><strong>A shared health timeline</strong><p>Every update from the care team, as it happens.</p></div></li>
+      <li><span>{{template "icon-activity"}}</span><div><strong>Recovery check-ins</strong><p>Patients log pain, mobility and energy; providers see who needs attention.</p></div></li>
+      <li><span>{{template "icon-shield"}}</span><div><strong>Patient-controlled access</strong><p>Providers see a chart only after the patient accepts.</p></div></li>
+    </ul>
+  </div>
+  <p class="auth-aside-footer">© ClearChart · A more connected kind of care</p>
+</section>
+{{end}}
+
 {{define "auth.html"}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>{{if eq .Mode "signup"}}Create your account{{else}}Welcome back{{end}} &middot; ClearChart</title>
+  <title>{{if eq .Mode "signup"}}Create your account{{else}}Sign in{{end}} &middot; ClearChart</title>
   {{template "head"}}
 </head>
-<body class="onboarding-body">
-  <main class="onboarding-layout">
-    <section class="onboarding-story">
-      <a class="brand" href="/" aria-label="ClearChart home">{{template "brand"}}</a>
-      <div>
-        <p class="eyebrow">YOUR STORY. YOUR CARE. CONNECTED.</p>
-        <h1>A little more clarity.<br><em>A lot more you.</em></h1>
-        <p>A shared space where patients and providers move forward together.</p>
-        <div class="onboarding-benefits">
-          <span>{{template "icon-record"}} Your health story, in one place</span>
-          <span>{{template "icon-people"}} Connected to your care team</span>
-          <span>{{template "icon-heart"}} Every step of your recovery</span>
-        </div>
-      </div>
-      <p class="onboarding-story-footer">ClearChart &middot; A more connected kind of care.</p>
-    </section>
-    <section class="onboarding-form-area" aria-labelledby="auth-heading">
-      <div class="onboarding-form-wrap">
-        <span class="form-step">{{if eq .Mode "signup"}}START YOUR CLEARCHART STORY{{else}}YOUR WORKSPACE IS WAITING{{end}}</span>
-        <h2 id="auth-heading">{{if eq .Mode "signup"}}Make room for better care.{{else}}Welcome back.{{end}}</h2>
-        <p>{{if eq .Mode "signup"}}Create an account, then tell us a little about yourself.{{else}}Sign in to your own care workspace.{{end}}</p>
-        <nav class="role-switch" aria-label="Account access">
+<body class="auth-body">
+  <main class="auth-layout">
+    {{template "auth-aside"}}
+    <section class="auth-main" aria-labelledby="auth-heading">
+      <div class="auth-card">
+        <a class="brand auth-mobile-brand" href="/" aria-label="ClearChart home">{{template "brand"}}</a>
+        <p class="eyebrow">{{if eq .Mode "signup"}}Get started{{else}}Welcome back{{end}}</p>
+        <h2 id="auth-heading" class="auth-title">{{if eq .Mode "signup"}}Create your account{{else}}Sign in to ClearChart{{end}}</h2>
+        <p class="auth-lead">{{if eq .Mode "signup"}}Create an account, then tell us a little about yourself.{{else}}Access your care workspace.{{end}}</p>
+        <nav class="segmented segmented-block" aria-label="Account access">
           <a href="/login" {{if eq .Mode "login"}}class="selected" aria-current="page"{{end}}>Sign in</a>
           <a href="/signup" {{if eq .Mode "signup"}}class="selected" aria-current="page"{{end}}>Create account</a>
         </nav>
+        {{if .Error}}<div id="form-feedback" class="feedback error" role="alert">{{.Error}}</div>{{end}}
+        {{if .Message}}<div id="onboarding-result" class="alert alert-success" role="status">{{.Message}}</div>{{end}}
+        <form class="form-stack" method="post" action="/{{.Mode}}">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <div class="field">
+            <label for="email">Email address</label>
+            <input type="email" id="email" name="email" value="{{.Email}}" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="you@example.com" maxlength="254" required>
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" {{if eq .Mode "signup"}}autocomplete="new-password" minlength="8" aria-describedby="password-hint"{{else}}autocomplete="current-password"{{end}} required>
+            {{if eq .Mode "signup"}}<p class="hint" id="password-hint">Use at least 8 characters. If prompted, confirm your email before signing in.</p>{{end}}
+          </div>
+          <button class="btn btn-primary btn-lg btn-block" type="submit">{{if eq .Mode "signup"}}Create account{{else}}Sign in{{end}} {{template "icon-arrow"}}</button>
+        </form>
+        <p class="auth-switch">{{if eq .Mode "signup"}}Already have an account? <a href="/login">Sign in</a>{{else}}New to ClearChart? <a href="/signup">Create an account</a>{{end}}</p>
         {{if .Judge}}<form class="judge-entry" method="post" action="/judge">
           <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <div><strong>Judging ClearChart?</strong><span>Skip sign-up. See the doctor and patient sides together, with every patient in the database loaded.</span></div>
-          <button class="button button-primary" type="submit">Enter judge mode {{template "icon-arrow"}}</button>
+          <span class="card-icon tone-amber">{{template "icon-spark"}}</span>
+          <div><strong>Judging ClearChart?</strong><span>Skip sign-up and see the doctor and patient sides together, with every patient in the database loaded.</span></div>
+          <button class="btn btn-secondary btn-block" type="submit">Enter judge mode {{template "icon-arrow"}}</button>
         </form>{{end}}
-        {{if .Error}}<div id="form-feedback" class="error" role="alert">{{.Error}}</div>{{end}}
-        {{if .Message}}<div id="onboarding-result" role="status">{{.Message}}</div>{{end}}
-        <form class="onboarding-form" method="post" action="/{{.Mode}}">
-          <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <label for="email">Email address</label>
-          <input type="email" id="email" name="email" value="{{.Email}}" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="you@example.com" maxlength="254" required>
-          <label for="password">Password</label>
-          <input type="password" id="password" name="password" {{if eq .Mode "signup"}}autocomplete="new-password" minlength="8" aria-describedby="password-hint"{{else}}autocomplete="current-password"{{end}} required>
-          {{if eq .Mode "signup"}}<p class="form-hint" id="password-hint">Use at least 8 characters. If prompted, confirm your email before signing in.</p>{{end}}
-          <button class="button button-primary" type="submit">{{if eq .Mode "signup"}}Create account{{else}}Sign in{{end}} {{template "icon-arrow"}}</button>
-        </form>
-        <p class="onboarding-disclosure">{{if eq .Mode "signup"}}Already have an account? <a href="/login" class="underline">Sign in</a>.{{else}}New to ClearChart? <a href="/signup" class="underline">Create an account</a>.{{end}}</p>
       </div>
     </section>
   </main>

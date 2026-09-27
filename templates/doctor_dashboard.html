@@ -3,7 +3,7 @@
 <html lang="en">
 
 <head>
-  <title>Your care workspace · ClearChart</title>{{template "head"}}
+  <title>Provider workspace · ClearChart</title>{{template "head"}}
 </head>
 
 <body><a class="skip-link" href="#main-content">Skip to content</a>
@@ -12,75 +12,67 @@
     data-effect="$selectedpatient; $timelinetype; $timelinecat; @get('/events/doctor/{{.Profile.ID}}?view={{.ViewID}}', {openWhenHidden: true, filterSignals: {include: /^(selectedpatient|chartpatient|timelinetype|timelinecat)$/}})">
     {{template "sidebar" .}}<div class="workspace" data-signals="{_notifOpen: false}">{{template "topbar" .}}
       <main class="main-content" id="main-content">
-        <div class="page-heading">
+        <div class="page-header">
           <div>
-            <p class="eyebrow">BETTER TOGETHER. CLEARER FOR EVERYONE.</p>
-            <h1>Good care starts <em>with connection.</em></h1>
-            <p class="page-description">Welcome, {{.Profile.Name}}. Your patients' stories, in one place.</p>
+            <p class="eyebrow">Provider workspace</p>
+            <h1 class="page-title">Welcome, {{.Profile.Name}}</h1>
+            <p class="page-subtitle">Your patients' charts, check-ins and shared reports in one place.</p>
           </div>
-          <div class="heading-actions"><a class="button button-quiet" href="/invitations">+ Invite a patient</a>{{if .Patient.ID}}<a class="button button-primary" href="#new-record">+ Add a care update</a>{{end}}</div>
+          <div class="page-actions"><a class="btn btn-secondary" href="/invitations">{{template "icon-mail"}}Invite a patient</a>{{if .Patient.ID}}<a class="btn btn-primary" href="#new-record">{{template "icon-plus"}}Add care update</a>{{end}}</div>
         </div>
-        <div class="doctor-summary-strip">
-          <div><span class="summary-icon sage">{{template "icon-people"}}</span><strong>{{len
-              .Patients}}</strong><span>connected patients</span></div>
-          <div><span class="summary-icon peach">{{template "icon-record"}}</span><strong
-              id="record-count">{{.RecordCount}}</strong><span>records for this patient</span></div>
-          <div><span class="summary-icon lavender">{{template "icon-upload"}}</span><strong
-              id="upload-count">{{.UploadCount}}</strong><span>reports for this patient</span></div>
+        <div class="stat-grid">
+          <div class="stat-card"><span class="stat-icon tone-teal">{{template "icon-people"}}</span><div><span class="stat-label">Connected patients</span><strong>{{len .Patients}}</strong></div></div>
+          <div class="stat-card"><span class="stat-icon tone-blue">{{template "icon-record"}}</span><div><span class="stat-label">Records · selected patient</span><strong id="record-count">{{.RecordCount}}</strong></div></div>
+          <div class="stat-card"><span class="stat-icon tone-violet">{{template "icon-upload"}}</span><div><span class="stat-label">Reports · selected patient</span><strong id="upload-count">{{.UploadCount}}</strong></div></div>
         </div>
         <div id="care-team-update" role="status" aria-live="polite"></div>
         <div id="form-feedback" role="status" aria-live="polite"></div>
-        <div class="dashboard-grid doctor-grid">
+        <div class="dashboard-grid">
           <div class="main-column">
-            <section class="panel patients-panel" id="my-patients">
-              <div class="section-heading">
+            <section class="card" id="my-patients" aria-labelledby="patients-title">
+              <div class="card-header">
                 <div>
-                  <h2>My patients</h2>
-                  <p class="section-subtitle">Select a patient to see their shared care story.</p>
-                </div><span class="team-count" aria-label="{{len .Patients}} connected patients">{{len
-                  .Patients}}</span>
+                  <h2 class="card-title" id="patients-title">My patients</h2>
+                  <p class="card-subtitle">Select a patient to open their shared chart</p>
+                </div><span class="count-pill" aria-label="{{len .Patients}} connected patients">{{len .Patients}}</span>
               </div>
-              {{template "doctor-selected-patient" .}}
-              {{if .Patients}}<div class="patient-search"><input type="search"
-                  id="patient-search" aria-label="Search patients" placeholder="Search patients by name or email" autocomplete="off"
+              {{if .Patients}}<div class="search-field">{{template "icon-search"}}<input type="search"
+                  id="patient-search" aria-label="Search patients" placeholder="Search by name or email" autocomplete="off"
                   aria-controls="patient-directory" data-bind:patientsearch
                   data-on:input__debounce.200ms="@get('/patients/search', {filterSignals: {include: /^(patientsearch|selectedpatient)$/}})"></div>{{end}}
               {{template "patient-directory" .Directory}}
             </section>
+            {{template "doctor-selected-patient" .}}
             {{template "doctor-record-form" .}}
             {{template "doctor-timeline" .}}
           </div>
-          <aside class="secondary-column" aria-label="Patients needing attention and your profile">
+          <aside class="secondary-column" aria-label="Alerts, reports and your profile">
             {{template "attention-panel" .}}
             {{template "healing-panel" .}}
-            <section class="panel reports-panel" id="reports-center">
-              <div class="section-heading">
+            <section class="card" id="reports-center" aria-labelledby="reports-title">
+              <div class="card-header">
                 <div>
-                  <h2>Patient reports center</h2>
-                  <p class="section-subtitle">Documents shared by all your connected patients.</p>
-                </div><span class="small-icon">{{template "icon-upload"}}</span>
+                  <h2 class="card-title" id="reports-title">Patient reports</h2>
+                  <p class="card-subtitle">Documents shared by all your connected patients</p>
+                </div><span class="card-icon tone-violet">{{template "icon-upload"}}</span>
               </div>
-              <ul id="reports" class="uploads-list" tabindex="0" aria-label="Reports from connected patients">{{range
+              <ul id="reports" class="file-list scroll-area" tabindex="0" aria-label="Reports from connected patients">{{range
                 .Reports}}{{template "report" .}}{{end}}</ul>
-              <p class="form-hint">Scroll to browse shared reports. Reports track filenames only. No file contents
-                are stored.</p>
+              <p class="hint">{{template "icon-lock"}}Filenames only. No file contents are stored.</p>
             </section>
-            <section class="panel doctor-profile-card"><span class="profile-kicker">MY PROFILE</span><span
-                class="avatar profile-avatar">{{initials .Profile.Name}}</span>
-              <h2>{{.Profile.Name}}</h2>
-              <p>{{.Profile.Specialization}}</p>
-              <div class="profile-facts">
-                <div><span>License</span><strong>{{.Profile.LicenseNum}}</strong></div>
-                <div><span>Email</span><strong>{{.Profile.Email}}</strong></div>
-              </div><span class="profile-status">{{template "icon-check"}} Provider account</span>
+            <section class="card profile-card" aria-labelledby="profile-title">
+              <div class="profile-card-head"><span class="avatar avatar-lg">{{initials .Profile.Name}}</span>
+                <div><h2 class="card-title" id="profile-title">{{.Profile.Name}}</h2><p class="card-subtitle">{{.Profile.Specialization}}</p></div>
+              </div>
+              <dl class="facts">
+                <div><dt>License</dt><dd>{{.Profile.LicenseNum}}</dd></div>
+                <div><dt>Email</dt><dd>{{.Profile.Email}}</dd></div>
+                <div><dt>Account</dt><dd><span class="badge badge-success">{{template "icon-check"}}Provider</span></dd></div>
+              </dl>
             </section>
-            <div class="care-quote"><span>“</span>
-              <p>When everyone sees the whole picture, better care follows.</p><small>THE CLEARCHART APPROACH</small>
-            </div>
           </aside>
         </div>
-        <footer class="page-footer"><span>Made for a more connected kind of care.</span><span>ClearChart ©
-            {{.Today.Year}}</span></footer>
+        <footer class="page-footer"><span>ClearChart · Connected care for patients and providers</span><span>© {{.Today.Year}}</span></footer>
       </main>
     </div>
   </div>

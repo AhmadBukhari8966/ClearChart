@@ -52,8 +52,14 @@ func newApp(store Store, mode string) (*app, error) {
 		return nil, err
 	}
 	cssVersion := fmt.Sprintf("%x", sha256.Sum256(css))[:12]
+	favicon, err := assets.ReadFile("static/favicon.svg")
+	if err != nil {
+		return nil, err
+	}
+	faviconVersion := fmt.Sprintf("%x", sha256.Sum256(favicon))[:12]
 	t, err := template.New("").Funcs(template.FuncMap{
-		"cssVersion": func() string { return cssVersion },
+		"cssVersion":     func() string { return cssVersion },
+		"faviconVersion": func() string { return faviconVersion },
 		"initials": func(s string) string {
 			var out []rune
 			for _, p := range strings.Fields(strings.TrimPrefix(s, "Dr. ")) {
