@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -47,15 +48,24 @@ func startSSE(w http.ResponseWriter) {
 
 // Datastar's wire protocol: every line of multiline HTML needs its own elements
 // data field, and two trailing newlines terminate each event.
+// Events are not flushed individually: a response's patches leave together
+// when the handler returns, and the live stream flushes once per batch in
+// writeStream. This avoids one network write per fragment.
 func patch(w http.ResponseWriter, selector, mode, fragment string) {
-	fmt.Fprintf(w, "event: datastar-patch-elements\ndata: selector %s\ndata: mode %s\n", selector, mode)
+	var b strings.Builder
+	b.Grow(len(fragment) + 96)
+	b.WriteString("event: datastar-patch-elements\ndata: selector ")
+	b.WriteString(selector)
+	b.WriteString("\ndata: mode ")
+	b.WriteString(mode)
+	b.WriteByte('\n')
 	for _, line := range strings.Split(strings.ReplaceAll(fragment, "\r\n", "\n"), "\n") {
-		fmt.Fprintf(w, "data: elements %s\n", line)
+		b.WriteString("data: elements ")
+		b.WriteString(line)
+		b.WriteByte('\n')
 	}
-	fmt.Fprint(w, "\n")
-	if f, ok := w.(http.Flusher); ok {
-		f.Flush()
-	}
+	b.WriteByte('\n')
+	io.WriteString(w, b.String())
 }
 
 // Bound each write without leaving a deadline armed during the idle interval.
@@ -208,9 +218,6 @@ func (a *app) doctorContext(w http.ResponseWriter, d Dashboard, replaceForm bool
 
 func patchSignals(w http.ResponseWriter, signals string) {
 	fmt.Fprintf(w, "event: datastar-patch-signals\ndata: signals %s\n\n", signals)
-	if f, ok := w.(http.Flusher); ok {
-		f.Flush()
-	}
 }
 
 // writeTimeline patches the filtered records and the filter bar that reports

@@ -39,6 +39,8 @@ type app struct {
 	secureCookies bool
 }
 
+var labels = map[string]string{"note": "Clinical note", "prescription": "Prescription", "imaging": "Imaging", "pain": "Pain level", "mobility": "Mobility", "energy": "Energy"}
+
 func newApp(store Store, mode string) (*app, error) {
 	t, err := template.New("").Funcs(template.FuncMap{
 		"initials": func(s string) string {
@@ -58,7 +60,6 @@ func newApp(store Store, mode string) (*app, error) {
 		"categoryName":     categoryName,
 		"recordCategories": func() []RecordCategory { return recordCategories },
 		"label": func(s string) string {
-			labels := map[string]string{"note": "Clinical note", "prescription": "Prescription", "imaging": "Imaging", "pain": "Pain level", "mobility": "Mobility", "energy": "Energy"}
 			if v, ok := labels[s]; ok {
 				return v
 			}
@@ -100,8 +101,17 @@ func (a *app) routes() http.Handler {
 		fmt.Fprintln(w, "ok")
 	})
 	static, _ := fs.Sub(assets, "static")
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(static))))
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	etags := staticETags(static)
+	files := http.StripPrefix("/static/", http.FileServer(http.FS(static)))
+	mux.Handle("GET /static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// FileServer answers If-None-Match with 304 when the ETag is preset.
+		if tag, ok := etags[strings.TrimPrefix(r.URL.Path, "/static")]; ok {
+			w.Header().Set("ETag", tag)
+		}
+		w.Header().Set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400")
+		files.ServeHTTP(w, r)
+	}))
+	return withGzip(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "same-origin")
 		w.Header().Set("X-Frame-Options", "DENY")
@@ -109,7 +119,7 @@ func (a *app) routes() http.Handler {
 			w.Header().Set("Cache-Control", "no-store")
 		}
 		mux.ServeHTTP(w, r)
-	})
+	}))
 }
 
 func (a *app) render(name string, data any) (string, error) {
@@ -154,22 +164,33 @@ func main() {
 		log.Fatal("Database connection failed. Check DATABASE_URL; connection details were not logged.")
 	}
 	defer store.Close()
+	// Schema checks are independent; run them concurrently.
 	checkCtx, checkCancel := context.WithTimeout(ctx, 5*time.Second)
-	_, err = store.ProfileByAuthUserID(checkCtx, "00000000-0000-0000-0000-000000000000")
+	var authErr, invitationErr, categoryErr error
+	parallel(
+		func() error {
+			if _, e := store.ProfileByAuthUserID(checkCtx, "00000000-0000-0000-0000-000000000000"); e != nil && !errors.Is(e, ErrNotFound) {
+				authErr = e
+			}
+			return nil
+		},
+		func() error {
+			_, invitationErr = store.Invitations(checkCtx, "00000000-0000-0000-0000-000000000000")
+			return nil
+		},
+		func() error {
+			_, categoryErr = store.Records(checkCtx, "00000000-0000-0000-0000-000000000000")
+			return nil
+		},
+	)
 	checkCancel()
-	if err != nil && !errors.Is(err, ErrNotFound) {
+	if authErr != nil {
 		log.Fatal("Database schema is not ready. Apply migrations/001_auth_identity.sql to the existing database (schema.sql for a new database).")
 	}
-	invitationCtx, invitationCancel := context.WithTimeout(ctx, 5*time.Second)
-	_, err = store.Invitations(invitationCtx, "00000000-0000-0000-0000-000000000000")
-	invitationCancel()
-	if err != nil {
+	if invitationErr != nil {
 		log.Fatal("Invitation schema is not ready. Apply migrations/002_care_invitations.sql (schema.sql for a new database).")
 	}
-	categoryCtx, categoryCancel := context.WithTimeout(ctx, 5*time.Second)
-	_, err = store.Records(categoryCtx, "00000000-0000-0000-0000-000000000000")
-	categoryCancel()
-	if err != nil {
+	if categoryErr != nil {
 		log.Fatal("Record category schema is not ready. Apply migrations/003_record_categories.sql (schema.sql for a new database).")
 	}
 	a, err := newApp(store, "Supabase connected")

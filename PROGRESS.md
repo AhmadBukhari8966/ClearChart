@@ -1,9 +1,23 @@
 # Progress — 2026-09-26
 
 ## Current task
-Body-map categories merged into the patient timeline as filters; separate body map removed. Code, tests and build verified locally. **Not deployed:** migration 003 must be applied to Supabase before restarting the server (startup fails with a clear message otherwise).
+Performance pass (2026-09-26). Verified locally; no schema change, no migration needed. Previous task (timeline category filters) still awaits migration 003 on Supabase — see Next steps.
 
-## Timeline filters (this change)
+## Performance (this change)
+- `store.go` `Dashboard()`: one SQL statement (CTEs + `json_build_object`/`json_agg`) replaces the 8–10 sequential queries in `dashboardData` (profile, patients, care-team check, biometrics, reports, invitation count, patient, doctors, records, uploads, healing). Selected-patient resolution and care-team authorization happen in SQL; requested-but-unlinked or malformed patient IDs → `ErrForbidden`. Patient directory order now `name,id` (deterministic ties).
+- lib/pq `binary_parameters=yes` added to the DSN automatically (`singleRoundTripDSN`): 1 network round trip per parameterized query instead of 2. Pool keeps all 10 connections idle-ready.
+- Handlers: `addRecord` drops the redundant `IsCareTeam` pre-check (`AddRecord` already authorizes in its INSERT) and reuses dashboard counts instead of re-querying all records/uploads; `uploadReport` uses one `Counts()` query; `addHealing` loads only `Healing()` instead of a full dashboard; notifications panel no longer loads an unused profile; `RespondInvitation` merges lock + eligibility into one query and returns the doctor ID (removed `InvitationByID` and the follow-up invitation lookup); invitation/review pages and startup schema checks load in parallel; patient notification after invite runs after the response.
+- Removed now-unused store methods: `Patients`, `CareTeam`, `Uploads`, `Reports`, `Biometrics`, `InvitationByID`; `Dashboard.PendingInvitations/InvitationActivity` (only the count was used).
+- HTTP (`perf.go`): gzip (BestSpeed, pooled) for HTML/CSS/SVG/JS; SSE streams excluded. Static assets get content ETags + `max-age=3600` (304 revalidation). Mock scans cacheable `private, max-age=3600`. SSE `patch` no longer flushes per fragment (one flush per batch). Label map and plain-language replacer built once.
+- `docs/` still describes removed methods (it was already stale: memoryStore/demo); not updated.
+
+## Performance verification
+- `go vet ./...`, `go build`, `go test ./...` pass.
+- Temporary test (isolated PostgreSQL 16 on 127.0.0.1:55432 via Homebrew, schema + seed + seed_large; DB dropped, cluster and test file deleted): new `Dashboard()` output identical to the old sequential implementation for 707 dashboards (every doctor × linked patient, unlinked patient, every patient, with categories/biometrics/invitation counts); HTTP checks for gzip page, static ETag/304, malformed/unlinked patient 403, add-record (linked/unlinked/malformed), healing panel, notifications, scans (patient/doctor/unlinked/unknown), SSE initial snapshot + live update, SSE not compressed. `invitation_check_test.go` passed too.
+- Through a 40 ms-RTT proxy: doctor dashboard 1077 ms → 76 ms, patient 623 ms → 46 ms. Doctor page 164 KB → 20 KB gzip.
+- NOT done: real-browser check against Supabase.
+
+## Timeline filters (previous change)
 - `categories.go`: 14 categories reused from the former body map (brain, heart, lungs, liver, stomach, kidneys, spine, shoulders, knees, ankles, hips, blood, nervous-system, muscles); `timelineFilter{Type, Category}` combines both rows. No keyword guessing.
 - `migrations/003_record_categories.sql` (+ appended to `schema.sql`): additive `medical_record_categories(record_id, category)` join table, CHECK on known IDs, cascade on record delete, RLS on. Existing records untouched → uncategorized, visible under "All categories".
 - `store.go`: `Records` returns `Categories`; `AddRecord` inserts record + categories in one transaction (care-team authorization unchanged).
@@ -25,7 +39,7 @@ Body-map categories merged into the patient timeline as filters; separate body m
 3. Invitations: `invitation_check_test.go` passed in this session's `go test ./...` against the local cluster (CSRF, consent, replay, decline/revoke/expiry). Browser check and live 002 confirmation still pending; remove that temporary test when the user agrees.
 
 ## File map
-`main.go` startup/routes/schema checks; `auth.go` sessions; `supabase_auth.go` provider; `models.go` contracts; `categories.go` record categories/filters; `store.go` SQL; `handlers.go` dashboards/mutations/scans; `live.go` SSE + timeline patches; `invitations.go`; `notifications.go`. Templates/static embedded.
+`main.go` startup/routes/schema checks; `auth.go` sessions; `supabase_auth.go` provider; `models.go` contracts; `categories.go` record categories/filters; `store.go` SQL; `handlers.go` dashboards/mutations/scans; `live.go` SSE + timeline patches; `perf.go` gzip/static caching/parallel helper; `invitations.go`; `notifications.go`. Templates/static embedded.
 
 ## Operational notes
 - `.env` private; never echo values. Sessions/event hub process-local; restart requires login.

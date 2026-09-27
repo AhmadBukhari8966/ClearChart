@@ -65,57 +65,46 @@ func (s *postgresStore) Invitation(ctx context.Context, hash string) (Invitation
  FROM care_invitations i JOIN profiles d ON d.id=i.doctor_id WHERE i.token_hash=$1`, hash).Scan(&i.ID, &i.DoctorID, &i.DoctorName, &i.Email, &i.Status, &i.PatientID, &i.CreatedAt, &i.ExpiresAt)
 	return i, storageError(err)
 }
-func (s *postgresStore) InvitationByID(ctx context.Context, id string) (Invitation, error) {
-	var i Invitation
-	err := s.db.QueryRowContext(ctx, `SELECT i.id::text,i.doctor_id::text,d.name,i.email,
- CASE WHEN i.status='pending' AND i.expires_at<=now() THEN 'expired' ELSE i.status END,
- COALESCE(i.patient_id::text,''),i.created_at,i.expires_at
- FROM care_invitations i JOIN profiles d ON d.id=i.doctor_id WHERE i.id=$1`, id).Scan(&i.ID, &i.DoctorID, &i.DoctorName, &i.Email, &i.Status, &i.PatientID, &i.CreatedAt, &i.ExpiresAt)
-	return i, storageError(err)
-}
 
 // Lock the invitation so acceptance, declining, revocation, and replay cannot
 // produce conflicting outcomes. Care access is granted only in this transaction.
-func (s *postgresStore) RespondInvitation(ctx context.Context, hash, patient, email string, accept bool) error {
+// It returns the inviting doctor's ID so callers can notify them without
+// another lookup.
+func (s *postgresStore) RespondInvitation(ctx context.Context, hash, patient, email string, accept bool) (string, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer tx.Rollback()
+	// The lock and the patient eligibility check share one round trip.
 	var id, doctor, target, status, owner string
-	var expired bool
-	err = tx.QueryRowContext(ctx, `SELECT id::text,doctor_id::text,email,status,COALESCE(patient_id::text,''),expires_at<=now() FROM care_invitations WHERE token_hash=$1 FOR UPDATE`, hash).Scan(&id, &doctor, &target, &status, &owner, &expired)
+	var expired, eligible bool
+	err = tx.QueryRowContext(ctx, `SELECT i.id::text,i.doctor_id::text,i.email,i.status,COALESCE(i.patient_id::text,''),i.expires_at<=now(),
+ EXISTS(SELECT 1 FROM profiles WHERE id=$2::uuid AND role='patient' AND auth_user_id IS NOT NULL)
+ FROM care_invitations i WHERE i.token_hash=$1 FOR UPDATE OF i`, hash, patient).Scan(&id, &doctor, &target, &status, &owner, &expired, &eligible)
 	if err != nil {
-		return storageError(err)
+		return "", storageError(err)
 	}
-	if !strings.EqualFold(target, email) {
-		return ErrForbidden
-	}
-	var eligible bool
-	err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM profiles WHERE id=$1 AND role='patient' AND auth_user_id IS NOT NULL)`, patient).Scan(&eligible)
-	if err != nil {
-		return err
-	}
-	if !eligible {
-		return ErrForbidden
+	if !strings.EqualFold(target, email) || !eligible {
+		return "", ErrForbidden
 	}
 	if status == "accepted" && owner == patient && accept {
-		return tx.Commit()
+		return doctor, tx.Commit()
 	}
 	if status != "pending" || expired {
-		return ErrConflict
+		return "", ErrConflict
 	}
 	status = "declined"
 	if accept {
 		status = "accepted"
 		if _, err = tx.ExecContext(ctx, `INSERT INTO care_team(patient_id,doctor_id) VALUES($1,$2) ON CONFLICT DO NOTHING`, patient, doctor); err != nil {
-			return err
+			return "", err
 		}
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE care_invitations SET status=$2,patient_id=$3,responded_at=now() WHERE id=$1`, id, status, patient); err != nil {
-		return err
+		return "", err
 	}
-	return tx.Commit()
+	return doctor, tx.Commit()
 }
 func (s *postgresStore) RevokeInvitation(ctx context.Context, id, doctor string) error {
 	result, err := s.db.ExecContext(ctx, `UPDATE care_invitations SET status='revoked',responded_at=now() WHERE id=$1 AND doctor_id=$2 AND status='pending'`, id, doctor)
@@ -146,12 +135,12 @@ func (a *app) invitationsPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", 303)
 		return
 	}
-	p, err := a.store.Profile(r.Context(), s.ProfileID)
-	if err != nil {
-		a.readError(w, err)
-		return
-	}
-	list, err := a.store.Invitations(r.Context(), s.ProfileID)
+	var p Profile
+	var list []Invitation
+	err := parallel(
+		func() (e error) { p, e = a.store.Profile(r.Context(), s.ProfileID); return },
+		func() (e error) { list, e = a.store.Invitations(r.Context(), s.ProfileID); return },
+	)
 	if err != nil {
 		a.readError(w, err)
 		return
@@ -196,10 +185,15 @@ func (a *app) createInvitation(w http.ResponseWriter, r *http.Request) {
 	// Show success message
 	patch(w, "#form-feedback", "outer", feedbackHTML("Invitation sent to "+email+".", false))
 
-	// Notify the patient in real-time if they are online.
-	if p, err := a.store.ProfileByEmail(r.Context(), email); err == nil {
-		a.hub.publish(p.ID, "")
-	}
+	// Notify the patient in real time if they are online, after the response
+	// is written so the doctor does not wait on the lookup.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if p, err := a.store.ProfileByEmail(ctx, email); err == nil {
+			a.hub.publish(p.ID, "")
+		}
+	}()
 }
 func (a *app) invitationList(w http.ResponseWriter, r *http.Request, s session) {
 	list, err := a.store.Invitations(r.Context(), s.ProfileID)
@@ -234,26 +228,20 @@ func (a *app) respondInvitationInline(w http.ResponseWriter, r *http.Request) {
 		a.feedback(w, "Invalid invitation response.", 400)
 		return
 	}
-	// Look up the invitation to get its token_hash without exposing the token.
-	inv, err := a.store.InvitationByID(r.Context(), invID)
-	if err != nil {
+	// Look up the recipient and token_hash in one query without exposing the token.
+	var email, tokenHash string
+	if !validUUID(invID) || a.store.(*postgresStore).db.QueryRowContext(r.Context(),
+		`SELECT email,token_hash FROM care_invitations WHERE id=$1`, invID).Scan(&email, &tokenHash) != nil {
 		a.feedback(w, "Invitation not found or already handled.", 404)
 		return
 	}
 	// Verify the patient is the intended recipient.
-	if !strings.EqualFold(s.Email, inv.Email) {
+	if !strings.EqualFold(s.Email, email) {
 		a.feedback(w, "This invitation is addressed to a different account.", 403)
 		return
 	}
-	// Re-derive hash from InvitationByID result — we don't store the hash on the struct,
-	// but we can use the invitation's ID to look up the token_hash directly.
-	var tokenHash string
-	if err = a.store.(*postgresStore).db.QueryRowContext(r.Context(),
-		`SELECT token_hash FROM care_invitations WHERE id=$1`, invID).Scan(&tokenHash); err != nil {
-		a.feedback(w, "Invitation not found.", 404)
-		return
-	}
-	if err = a.store.RespondInvitation(r.Context(), tokenHash, s.ProfileID, s.Email, choice == "accept"); err != nil {
+	doctorID, err := a.store.RespondInvitation(r.Context(), tokenHash, s.ProfileID, s.Email, choice == "accept")
+	if err != nil {
 		message := "This invitation is expired, already handled, or unavailable."
 		if errors.Is(err, ErrForbidden) {
 			message = "This invitation does not match your patient account."
@@ -266,7 +254,7 @@ func (a *app) respondInvitationInline(w http.ResponseWriter, r *http.Request) {
 		message = "Invitation accepted. Your doctor is now on your care team."
 		a.hub.publish(s.ProfileID, "")
 	}
-	a.hub.publish(inv.DoctorID, "")
+	a.hub.publish(doctorID, "")
 	// Refresh the notification panel.
 	a.notificationsPanel(w, r)
 	patch(w, "#form-feedback", "outer", feedbackHTML(message, false))
@@ -307,12 +295,12 @@ func (a *app) reviewInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.cookie(w, r, "clearchart_invitation", "", -1)
-	i, err := a.store.Invitation(r.Context(), invitationHash(token))
-	if err != nil {
-		a.readError(w, err)
-		return
-	}
-	p, err := a.store.Profile(r.Context(), s.ProfileID)
+	var i Invitation
+	var p Profile
+	err := parallel(
+		func() (e error) { i, e = a.store.Invitation(r.Context(), invitationHash(token)); return },
+		func() (e error) { p, e = a.store.Profile(r.Context(), s.ProfileID); return },
+	)
 	if err != nil {
 		a.readError(w, err)
 		return
@@ -349,7 +337,7 @@ func (a *app) respondInvitation(w http.ResponseWriter, r *http.Request) {
 		a.feedback(w, "Invalid invitation response.", 400)
 		return
 	}
-	err := a.store.RespondInvitation(r.Context(), invitationHash(token), s.ProfileID, s.Email, choice == "accept")
+	doctorID, err := a.store.RespondInvitation(r.Context(), invitationHash(token), s.ProfileID, s.Email, choice == "accept")
 	if err != nil {
 		message := "This invitation is expired, already handled, or unavailable."
 		if errors.Is(err, ErrForbidden) {
@@ -365,9 +353,7 @@ func (a *app) respondInvitation(w http.ResponseWriter, r *http.Request) {
 		a.hub.publish(s.ProfileID, "")
 	}
 	// Notify the doctor that a response arrived (accepted or declined).
-	if inv, err := a.store.Invitation(r.Context(), invitationHash(token)); err == nil {
-		a.hub.publish(inv.DoctorID, "")
-	}
+	a.hub.publish(doctorID, "")
 	startSSE(w)
 	fragment, _ := a.render("invitation-complete", invitationPage{Profile: Profile{ID: s.ProfileID, Role: s.Role}, Message: message})
 	patch(w, "#invitation-decision", "outer", fragment)

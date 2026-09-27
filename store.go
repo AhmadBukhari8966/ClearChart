@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -20,13 +22,16 @@ var (
 type postgresStore struct{ db *sql.DB }
 
 func NewPostgresStore(ctx context.Context, dsn string) (Store, error) {
-	db, err := sql.Open("postgres", dsn)
+	db, err := sql.Open("postgres", singleRoundTripDSN(dsn))
 	if err != nil {
 		return nil, err
 	}
+	// Keep every open connection idle-ready: a fresh TLS connection to a remote
+	// database costs several round trips before the first query.
 	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(5)
+	db.SetMaxIdleConns(10)
 	db.SetConnMaxLifetime(30 * time.Minute)
+	db.SetConnMaxIdleTime(10 * time.Minute)
 	if err = db.PingContext(ctx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("connect to PostgreSQL: %w", err)
@@ -34,6 +39,25 @@ func NewPostgresStore(ctx context.Context, dsn string) (Store, error) {
 	return &postgresStore{db: db}, nil
 }
 func (s *postgresStore) Close() error { return s.db.Close() }
+
+// singleRoundTripDSN enables lib/pq's binary_parameters mode, which sends
+// parse, bind and execute together: one network round trip per parameterized
+// query instead of two. Only []byte arguments change encoding; none are used.
+func singleRoundTripDSN(dsn string) string {
+	if strings.Contains(dsn, "binary_parameters") {
+		return dsn
+	}
+	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
+		if u, err := url.Parse(dsn); err == nil {
+			q := u.Query()
+			q.Set("binary_parameters", "yes")
+			u.RawQuery = q.Encode()
+			return u.String()
+		}
+		return dsn
+	}
+	return dsn + " binary_parameters=yes"
+}
 func storageError(err error) error {
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
@@ -66,28 +90,79 @@ func (s *postgresStore) ProfileByAuthUserID(ctx context.Context, authUserID stri
 func (s *postgresStore) ProfileByEmail(ctx context.Context, email string) (Profile, error) {
 	return scanProfile(s.db.QueryRowContext(ctx, `SELECT `+profileColumns+` FROM profiles p WHERE lower(p.email)=lower($1)`, email))
 }
-func (s *postgresStore) queryProfiles(ctx context.Context, query string, arg string) ([]Profile, error) {
-	rows, err := s.db.QueryContext(ctx, query, arg)
-	if err != nil {
-		return nil, err
+
+// profileJSON mirrors profileColumns for the aggregated dashboard query.
+// encoding/json matches keys to Profile fields case-insensitively.
+const profileJSON = `json_build_object('id',p.id,'authuserid',COALESCE(p.auth_user_id::text,''),'role',p.role,'name',p.name,'email',p.email,'licensenum',COALESCE(p.license_num,''),'specialization',COALESCE(p.specialization,''),'dob',COALESCE(to_char(p.dob,'YYYY-MM-DD'),''),'bloodtype',COALESCE(p.blood_type,''))`
+
+// dashboardQuery loads a whole dashboard in one round trip. The selected
+// patient is resolved in SQL: patients see themselves; doctors see the
+// requested patient only when linked, otherwise their first patient by name.
+// A requested but unlinked patient yields a null patient (ErrForbidden).
+// $1 viewer profile ID, $2 role, $3 viewer email, $4 requested patient ID or empty.
+const dashboardQuery = `WITH pts AS (
+  SELECT p.*, row_number() OVER (ORDER BY p.name,p.id) AS rn
+  FROM profiles p JOIN care_team c ON c.patient_id=p.id
+  WHERE $2='doctor' AND c.doctor_id=$1::uuid
+), sel AS (
+  SELECT CASE WHEN $2='patient' THEN $1::uuid
+    WHEN $4='' THEN (SELECT id FROM pts WHERE rn=1)
+    ELSE (SELECT id FROM pts WHERE id=NULLIF($4,'')::uuid) END AS id
+)
+SELECT json_build_object(
+ 'profile',(SELECT ` + profileJSON + ` FROM profiles p WHERE p.id=$1::uuid),
+ 'patients',COALESCE((SELECT json_agg(` + profileJSON + ` ORDER BY p.rn) FROM pts p),'[]'),
+ 'patient',(SELECT ` + profileJSON + ` FROM profiles p JOIN sel ON sel.id=p.id),
+ 'doctors',COALESCE((SELECT json_agg(` + profileJSON + ` ORDER BY p.name,p.id) FROM profiles p JOIN care_team c ON c.doctor_id=p.id JOIN sel ON sel.id=c.patient_id),'[]'),
+ 'records',COALESCE((SELECT json_agg(json_build_object('id',r.id,'patientid',r.patient_id,'doctorid',r.doctor_id,'type',r.type,'content',r.content,'timestamp',r.timestamp,'imageurl',COALESCE(r.image_url,''),'doctorname',d.name,'patientname',p.name,
+   'categories',ARRAY(SELECT mc.category FROM medical_record_categories mc WHERE mc.record_id=r.id ORDER BY mc.category)) ORDER BY r.timestamp DESC,r.id DESC)
+   FROM medical_records r JOIN sel ON sel.id=r.patient_id JOIN profiles d ON d.id=r.doctor_id JOIN profiles p ON p.id=r.patient_id),'[]'),
+ 'uploads',COALESCE((SELECT json_agg(json_build_object('id',u.id,'patientid',u.patient_id,'filename',u.file_name,'timestamp',u.timestamp,'patientname',p.name) ORDER BY u.timestamp DESC,u.id DESC)
+   FROM patient_uploads u JOIN sel ON sel.id=u.patient_id JOIN profiles p ON p.id=u.patient_id),'[]'),
+ 'healing',COALESCE((SELECT json_agg(h ORDER BY h.statustype) FROM (SELECT DISTINCT ON (hp.status_type) hp.id,hp.patient_id AS patientid,hp.status_type AS statustype,hp.value,hp.timestamp
+   FROM healing_progress hp JOIN sel ON sel.id=hp.patient_id ORDER BY hp.status_type,hp.timestamp DESC,hp.id DESC) h),'[]'),
+ 'reports',CASE WHEN $2='doctor' THEN COALESCE((SELECT json_agg(json_build_object('id',u.id,'patientid',u.patient_id,'filename',u.file_name,'timestamp',u.timestamp,'patientname',p.name) ORDER BY u.timestamp DESC,u.id DESC)
+   FROM patient_uploads u JOIN pts p ON p.id=u.patient_id),'[]') ELSE '[]' END,
+ 'biometric',CASE WHEN $2='doctor' THEN (SELECT json_build_object('doctorid',b.doctor_id,'heartrate',b.heart_rate,'sleephours',b.sleep_hours,'timestamp',b.timestamp)
+   FROM mock_biometric_data b WHERE b.doctor_id=$1::uuid ORDER BY b.timestamp DESC LIMIT 1) END,
+ 'notificationcount',CASE WHEN $2='patient' THEN (SELECT count(*) FROM (SELECT 1 FROM care_invitations i JOIN profiles d ON d.id=i.doctor_id
+     WHERE lower(i.email)=lower($3) AND i.status='pending' AND i.expires_at>now() LIMIT 50) x)
+   ELSE (SELECT count(*) FROM (SELECT 1 FROM care_invitations i WHERE i.doctor_id=$1::uuid AND i.status IN ('accepted','declined')
+     AND i.responded_at>=now()-interval '30 days' LIMIT 50) x) END
+)`
+
+// DashboardBundle is every read a dashboard needs, loaded by one query.
+type DashboardBundle struct {
+	Profile, Patient  *Profile
+	Patients, Doctors []Profile
+	Records           []Record
+	Uploads, Reports  []Upload
+	Healing           []Healing
+	Biometric         *Biometric
+	NotificationCount int
+}
+
+func (s *postgresStore) Dashboard(ctx context.Context, viewer, role, email, patient string) (DashboardBundle, error) {
+	var raw []byte
+	var b DashboardBundle
+	if err := s.db.QueryRowContext(ctx, dashboardQuery, viewer, role, email, patient).Scan(&raw); err != nil {
+		return b, storageError(err)
 	}
-	defer rows.Close()
-	var out []Profile
-	for rows.Next() {
-		p, err := scanProfile(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, p)
+	if err := json.Unmarshal(raw, &b); err != nil {
+		return b, err
 	}
-	return out, rows.Err()
+	if b.Profile == nil {
+		return b, ErrNotFound
+	}
+	return b, nil
 }
-func (s *postgresStore) CareTeam(ctx context.Context, patient string) ([]Profile, error) {
-	return s.queryProfiles(ctx, `SELECT `+profileColumns+` FROM profiles p JOIN care_team c ON c.doctor_id=p.id WHERE c.patient_id=$1 ORDER BY p.name`, patient)
+
+// Counts returns a patient's record and upload totals in one round trip.
+func (s *postgresStore) Counts(ctx context.Context, patient string) (records, uploads int, err error) {
+	err = s.db.QueryRowContext(ctx, `SELECT (SELECT count(*) FROM medical_records WHERE patient_id=$1),(SELECT count(*) FROM patient_uploads WHERE patient_id=$1)`, patient).Scan(&records, &uploads)
+	return records, uploads, err
 }
-func (s *postgresStore) Patients(ctx context.Context, doctor string) ([]Profile, error) {
-	return s.queryProfiles(ctx, `SELECT `+profileColumns+` FROM profiles p JOIN care_team c ON c.patient_id=p.id WHERE c.doctor_id=$1 ORDER BY p.name`, doctor)
-}
+
 func scanRecord(row rowScanner) (Record, error) {
 	var r Record
 	err := row.Scan(&r.ID, &r.PatientID, &r.DoctorID, &r.Type, &r.Content, &r.Timestamp, &r.ImageURL, &r.DoctorName, &r.PatientName, pq.Array(&r.Categories))
@@ -118,42 +193,6 @@ func scanUpload(row rowScanner) (Upload, error) {
 	err := row.Scan(&u.ID, &u.PatientID, &u.FileName, &u.Timestamp, &u.PatientName)
 	return u, storageError(err)
 }
-func (s *postgresStore) Uploads(ctx context.Context, patient string) ([]Upload, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT u.id::text,u.patient_id::text,u.file_name,u.timestamp,p.name FROM patient_uploads u JOIN profiles p ON p.id=u.patient_id WHERE u.patient_id=$1 ORDER BY u.timestamp DESC,u.id DESC`, patient)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []Upload
-	for rows.Next() {
-		u, err := scanUpload(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, u)
-	}
-	return out, rows.Err()
-}
-func (s *postgresStore) Reports(ctx context.Context, doctor string) ([]Upload, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT u.id::text,u.patient_id::text,u.file_name,u.timestamp,p.name
-	 FROM patient_uploads u JOIN profiles p ON p.id=u.patient_id
-	 JOIN care_team c ON c.patient_id=u.patient_id WHERE c.doctor_id=$1
-	 ORDER BY u.timestamp DESC,u.id DESC`, doctor)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []Upload
-	for rows.Next() {
-		u, err := scanUpload(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, u)
-	}
-	return out, rows.Err()
-}
-
 func scanHealing(row rowScanner) (Healing, error) {
 	var h Healing
 	err := row.Scan(&h.ID, &h.PatientID, &h.StatusType, &h.Value, &h.Timestamp)
@@ -174,11 +213,6 @@ func (s *postgresStore) Healing(ctx context.Context, patient string) ([]Healing,
 		out = append(out, h)
 	}
 	return out, rows.Err()
-}
-func (s *postgresStore) Biometrics(ctx context.Context, doctor string) (Biometric, error) {
-	var b Biometric
-	err := s.db.QueryRowContext(ctx, `SELECT doctor_id::text,heart_rate,sleep_hours,timestamp FROM mock_biometric_data WHERE doctor_id=$1 ORDER BY timestamp DESC LIMIT 1`, doctor).Scan(&b.DoctorID, &b.HeartRate, &b.SleepHours, &b.Timestamp)
-	return b, storageError(err)
 }
 func (s *postgresStore) IsCareTeam(ctx context.Context, patient, doctor string) (bool, error) {
 	var ok bool

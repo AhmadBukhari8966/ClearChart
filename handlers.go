@@ -19,80 +19,46 @@ import (
 func validRole(s string) bool { return s == "patient" || s == "doctor" }
 func validType(s string) bool { return s == "note" || s == "prescription" || s == "imaging" }
 
+// dashboardData loads the whole dashboard with a single database round trip.
 func (a *app) dashboardData(ctx context.Context, s session, patientID string, filter timelineFilter) (Dashboard, error) {
 	d := Dashboard{Role: s.Role, CSRF: s.CSRF, Mode: a.mode, Filter: filter, Today: time.Now(), ViewID: newID()}
-	var err error
-	if d.Profile, err = a.store.Profile(ctx, s.ProfileID); err != nil {
-		return d, err
-	}
 	if s.Role == "patient" {
-		patientID = s.ProfileID
-		if d.PendingInvitations, err = a.store.PendingInvitationsForEmail(ctx, s.Email); err != nil {
-			return d, err
-		}
-		d.NotificationCount = len(d.PendingInvitations)
-	} else {
-		if d.Patients, err = a.store.Patients(ctx, s.ProfileID); err != nil {
-			return d, err
-		}
-		if patientID == "" && len(d.Patients) > 0 {
-			patientID = d.Patients[0].ID
-		}
-		if patientID != "" {
-			allowed, e := a.store.IsCareTeam(ctx, patientID, s.ProfileID)
-			if e != nil {
-				return d, e
-			}
-			if !allowed {
-				return d, ErrForbidden
-			}
-		}
-		if d.Biometric, err = a.store.Biometrics(ctx, s.ProfileID); err != nil && !errors.Is(err, ErrNotFound) {
-			return d, err
-		}
-		if d.Reports, err = a.store.Reports(ctx, s.ProfileID); err != nil {
-			return d, err
-		}
-		if d.InvitationActivity, err = a.store.RecentInvitationActivity(ctx, s.ProfileID); err != nil {
-			return d, err
-		}
-		d.NotificationCount = len(d.InvitationActivity)
+		patientID = ""
+	} else if patientID != "" && !validUUID(patientID) {
+		return d, ErrForbidden
 	}
-	if patientID == "" {
-		return d, nil
-	}
-	if d.Patient, err = a.store.Profile(ctx, patientID); err != nil {
-		return d, err
-	}
-	if d.Doctors, err = a.store.CareTeam(ctx, patientID); err != nil {
-		return d, err
-	}
-	records, err := a.store.Records(ctx, patientID)
+	b, err := a.store.Dashboard(ctx, s.ProfileID, s.Role, s.Email, patientID)
 	if err != nil {
 		return d, err
 	}
-	d.RecordCount = len(records)
-	d.Summary = plainSummary(records)
-	for _, record := range records {
+	if b.Patient == nil && patientID != "" {
+		return d, ErrForbidden
+	}
+	d.Profile = *b.Profile
+	d.Patients, d.Reports, d.NotificationCount = b.Patients, b.Reports, b.NotificationCount
+	if b.Biometric != nil {
+		d.Biometric = *b.Biometric
+	}
+	if b.Patient == nil {
+		return d, nil
+	}
+	d.Patient, d.Doctors, d.Uploads, d.Healing = *b.Patient, b.Doctors, b.Uploads, b.Healing
+	d.RecordCount, d.UploadCount = len(b.Records), len(b.Uploads)
+	d.Summary = plainSummary(b.Records)
+	for _, record := range b.Records {
 		if filter.matches(record) {
 			d.Records = append(d.Records, record)
 		}
 	}
-	if d.Uploads, err = a.store.Uploads(ctx, patientID); err != nil {
-		return d, err
-	}
-	d.UploadCount = len(d.Uploads)
-	if d.Healing, err = a.store.Healing(ctx, patientID); err != nil {
-		return d, err
-	}
 	return d, nil
 }
+
+var plainLanguage = strings.NewReplacer("ambulation", "walking", "edema", "swelling", "ROM", "range of motion", "range-of-motion", "range of motion", "PRN", "as needed", "BID", "twice daily", "postoperative", "after surgery")
 
 func plainSummary(records []Record) string {
 	for _, r := range records {
 		if r.Type == "note" {
-			replacer := strings.NewReplacer("ambulation", "walking", "edema", "swelling", "ROM", "range of motion", "range-of-motion", "range of motion", "PRN", "as needed", "BID", "twice daily", "postoperative", "after surgery")
-			return replacer.Replace(r.Content)
+			return plainLanguage.Replace(r.Content)
 		}
 	}
 	return "Your doctor's next note will appear here in plain language. You can always read the original in your timeline."
@@ -181,12 +147,7 @@ func (a *app) addRecord(w http.ResponseWriter, r *http.Request) {
 		a.feedback(w, "The doctor does not match your session.", 403)
 		return
 	}
-	allowed, err := a.store.IsCareTeam(r.Context(), patientID, s.ProfileID)
-	if err != nil {
-		a.feedback(w, "Could not verify this care team. Try again.", 500)
-		return
-	}
-	if !allowed {
+	if !validUUID(patientID) {
 		a.feedback(w, "You can add records only for your linked patients.", 403)
 		return
 	}
@@ -205,7 +166,11 @@ func (a *app) addRecord(w http.ResponseWriter, r *http.Request) {
 	if kind == "imaging" {
 		record.ImageURL = "/static/ct-scan.svg"
 	}
-	if _, err = a.store.AddRecord(r.Context(), record); err != nil {
+	// AddRecord authorizes the care-team link in the same statement as the insert.
+	if _, err := a.store.AddRecord(r.Context(), record); errors.Is(err, ErrForbidden) {
+		a.feedback(w, "You can add records only for your linked patients.", 403)
+		return
+	} else if err != nil {
 		a.feedback(w, "Your record could not be saved. Please try again.", 500)
 		return
 	}
@@ -222,7 +187,7 @@ func (a *app) addRecord(w http.ResponseWriter, r *http.Request) {
 	}
 	startSSE(w)
 	a.writeTimeline(w, d)
-	a.writeCounts(w, r.Context(), patientID)
+	writeCounts(w, d.RecordCount, d.UploadCount)
 	patch(w, "#form-feedback", "outer", feedbackHTML("Record shared with your patient. Their timeline is up to date.", false))
 	a.hub.publish(patientID, r.FormValue("view_id"))
 }
@@ -285,7 +250,9 @@ func (a *app) uploadReport(w http.ResponseWriter, r *http.Request) {
 	}
 	startSSE(w)
 	patch(w, "#uploads", "prepend", fragment)
-	a.writeCounts(w, r.Context(), s.ProfileID)
+	if records, uploads, err := a.store.Counts(r.Context(), s.ProfileID); err == nil {
+		writeCounts(w, records, uploads)
+	}
 	patch(w, "#form-feedback", "outer", feedbackHTML("Report name shared with your care team. File contents are not stored in this demo.", false))
 	a.hub.publish(s.ProfileID, r.FormValue("view_id"))
 }
@@ -314,12 +281,14 @@ func (a *app) addHealing(w http.ResponseWriter, r *http.Request) {
 		a.feedback(w, "Your check-in could not be saved. Please try again.", 500)
 		return
 	}
-	d, err := a.dashboardData(r.Context(), s, "", timelineFilter{})
+	// The healing panel needs only the latest check-ins, not a full dashboard.
+	healing, err := a.store.Healing(r.Context(), s.ProfileID)
 	if err != nil {
 		a.feedback(w, "Check-in saved. Refresh to see it.", 500)
 		return
 	}
-	d.ViewID = r.FormValue("view_id")
+	me := Profile{ID: s.ProfileID, Role: s.Role}
+	d := Dashboard{Profile: me, Patient: me, Role: s.Role, CSRF: s.CSRF, Healing: healing, ViewID: r.FormValue("view_id")}
 	fragment, err := a.render("healing-panel", d)
 	if err != nil {
 		a.feedback(w, "Check-in saved. Refresh to see it.", 500)
@@ -425,13 +394,9 @@ func (a *app) feedback(w http.ResponseWriter, message string, status int) {
 	patch(w, "#form-feedback", "outer", feedbackHTML(message, status >= 400))
 }
 
-func (a *app) writeCounts(w http.ResponseWriter, ctx context.Context, patientID string) {
-	if records, err := a.store.Records(ctx, patientID); err == nil {
-		patch(w, "#record-count", "outer", fmt.Sprintf(`<strong id="record-count">%d</strong>`, len(records)))
-	}
-	if uploads, err := a.store.Uploads(ctx, patientID); err == nil {
-		patch(w, "#upload-count", "outer", fmt.Sprintf(`<strong id="upload-count">%d</strong>`, len(uploads)))
-	}
+func writeCounts(w http.ResponseWriter, records, uploads int) {
+	patch(w, "#record-count", "outer", fmt.Sprintf(`<strong id="record-count">%d</strong>`, records))
+	patch(w, "#upload-count", "outer", fmt.Sprintf(`<strong id="upload-count">%d</strong>`, uploads))
 }
 
 // Images are generated locally from an SVG illustration and tagged to their
@@ -439,7 +404,7 @@ func (a *app) writeCounts(w http.ResponseWriter, ctx context.Context, patientID 
 func (a *app) mockScan(w http.ResponseWriter, r *http.Request) {
 	patientID := r.PathValue("id")
 	number, err := strconv.Atoi(strings.TrimSuffix(r.PathValue("scan"), ".svg"))
-	if err != nil || number < 1 || number > 2 {
+	if err != nil || number < 1 || number > 2 || !validUUID(patientID) {
 		http.NotFound(w, r)
 		return
 	}
@@ -447,22 +412,24 @@ func (a *app) mockScan(w http.ResponseWriter, r *http.Request) {
 	if s, ok := a.sessionFor(r, "patient"); ok && s.ProfileID == patientID {
 		allowed = true
 	}
-	if !allowed {
-		if s, ok := a.sessionFor(r, "doctor"); ok {
-			allowed, err = a.store.IsCareTeam(r.Context(), patientID, s.ProfileID)
-			if err != nil {
-				a.readError(w, err)
-				return
-			}
+	var p Profile
+	if allowed {
+		p, err = a.store.Profile(r.Context(), patientID)
+	} else if s, ok := a.sessionFor(r, "doctor"); ok {
+		err = parallel(
+			func() (e error) { allowed, e = a.store.IsCareTeam(r.Context(), patientID, s.ProfileID); return },
+			func() (e error) { p, e = a.store.Profile(r.Context(), patientID); return },
+		)
+		if errors.Is(err, ErrNotFound) {
+			err = nil // an unlinked doctor gets 403, not a profile-existence signal
 		}
+	}
+	if err != nil {
+		a.readError(w, err)
+		return
 	}
 	if !allowed {
 		http.Error(w, "This scan is not part of your current care team.", http.StatusForbidden)
-		return
-	}
-	p, err := a.store.Profile(r.Context(), patientID)
-	if err != nil {
-		a.readError(w, err)
 		return
 	}
 	if p.Role != "patient" {
@@ -486,6 +453,8 @@ func (a *app) mockScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
+	// Deterministic output: let the browser reuse it instead of refetching per render.
+	w.Header().Set("Cache-Control", "private, max-age=3600")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
 	fmt.Fprint(w, fragment)
 }

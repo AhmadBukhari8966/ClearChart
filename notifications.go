@@ -131,13 +131,8 @@ func (a *app) notificationsPanel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	notifications := buildNotifications(invitations, s.Role)
-	p, err := a.store.Profile(r.Context(), s.ProfileID)
-	if err != nil {
-		http.Error(w, "Could not load profile.", 500)
-		return
-	}
+	// The panel templates do not render the profile, so it is not loaded.
 	data := notificationPage{
-		Profile:       p,
 		CSRF:          s.CSRF,
 		Notifications: notifications,
 		Count:         len(notifications),

@@ -125,7 +125,7 @@ func TestInvitationIntegrationCheck(t *testing.T) {
 		}
 		switch state {
 		case "declined":
-			e = s.RespondInvitation(ctx, hash, patient.ID, patient.Email, false)
+			_, e = s.RespondInvitation(ctx, hash, patient.ID, patient.Email, false)
 		case "revoked":
 			if e = s.RevokeInvitation(ctx, i.ID, patient.ID); !errors.Is(e, ErrNotFound) {
 				t.Fatal("foreign revoke")
@@ -137,7 +137,7 @@ func TestInvitationIntegrationCheck(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		if e = s.RespondInvitation(ctx, hash, patient.ID, patient.Email, true); !errors.Is(e, ErrConflict) {
+		if _, e = s.RespondInvitation(ctx, hash, patient.ID, patient.Email, true); !errors.Is(e, ErrConflict) {
 			t.Fatal(state, e)
 		}
 	}
