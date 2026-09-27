@@ -8,5 +8,4 @@
 *.test
 *_test.go
 *.log
-docs
 seed*.sql

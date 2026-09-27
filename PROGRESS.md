@@ -3,6 +3,11 @@
 ## Current task
 Judge mode (2026-09-26). Builds and vets; temporary unit checks passed and were removed. NOT yet run against Supabase or clicked through in a browser.
 
+## Cleanup (latest, 2026-09-27)
+- Deleted `docs/` (stale: memory store, demo login, body map, removed methods), `invitation_check_test.go` (temporary; passed before removal), local `clearchart.exe`. README rewritten as the single current reference (config, migrations 001–004, care-team linking SQL, limits, Fly deploy).
+- Removed dead CSS for the old Apple Watch/biometrics card, `mock-tag`, `notif-review-link` (34 rules, 4 shared selector lists trimmed; ~2.5 KB). staticcheck U1000 found no unused Go code.
+- Verified vet/build/test. Kept: `.tools/` (1.2 GB local test PostgreSQL, git-ignored), seeds, `.vscode/launch.json`, Fly GitHub workflow (needs `FLY_API_TOKEN` repo secret or it fails on push).
+
 ## Fly.io deploy (2026-09-27)
 - `Dockerfile` (distroless, HOST=0.0.0.0, PORT=8080), `.dockerignore` (excludes .env, .tools, tests, seeds), `fly.toml` (app `clearchart-proud-shell-6676`, region sjc near Supabase us-west-2, 1 always-on machine). Secrets on Fly: DATABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.
 - `deploy.env` (committed, non-secret) is copied to `/app/.env` in the image; currently `JUDGE_MODE=true`. Fly secrets/env override it. Never put secrets there.
@@ -47,7 +52,6 @@ Performance pass (2026-09-26). Verified locally; no schema change, no migration 
 - Handlers: `addRecord` drops the redundant `IsCareTeam` pre-check (`AddRecord` already authorizes in its INSERT) and reuses dashboard counts instead of re-querying all records/uploads; `uploadReport` uses one `Counts()` query; `addHealing` loads only `Healing()` instead of a full dashboard; notifications panel no longer loads an unused profile; `RespondInvitation` merges lock + eligibility into one query and returns the doctor ID (removed `InvitationByID` and the follow-up invitation lookup); invitation/review pages and startup schema checks load in parallel; patient notification after invite runs after the response.
 - Removed now-unused store methods: `Patients`, `CareTeam`, `Uploads`, `Reports`, `Biometrics`, `InvitationByID`; `Dashboard.PendingInvitations/InvitationActivity` (only the count was used).
 - HTTP (`perf.go`): gzip (BestSpeed, pooled) for HTML/CSS/SVG/JS; SSE streams excluded. Static assets get content ETags + `max-age=3600` (304 revalidation). Mock scans cacheable `private, max-age=3600`. SSE `patch` no longer flushes per fragment (one flush per batch). Label map and plain-language replacer built once.
-- `docs/` still describes removed methods (it was already stale: memoryStore/demo); not updated.
 
 ## Performance verification
 - `go vet ./...`, `go build`, `go test ./...` pass.
@@ -74,7 +78,7 @@ Performance pass (2026-09-26). Verified locally; no schema change, no migration 
 ## Next steps
 1. Apply `migrations/003_record_categories.sql` in Supabase SQL editor (additive; also confirm 002 is applied — still unverified).
 2. Restart server; browser-check filter rows, Clear filters, category tagging on new record, draft preservation when changing filters, patient live update.
-3. Invitations: `invitation_check_test.go` passed in this session's `go test ./...` against the local cluster (CSRF, consent, replay, decline/revoke/expiry). Browser check and live 002 confirmation still pending; remove that temporary test when the user agrees.
+3. Invitations: local integration test passed (CSRF, consent, replay, decline/revoke/expiry) before it was deleted. Browser check still pending.
 
 ## File map
 `main.go` startup/routes/schema checks; `auth.go` sessions; `supabase_auth.go` provider; `models.go` contracts; `categories.go` record categories/filters; `store.go` SQL; `handlers.go` dashboards/mutations/scans; `live.go` SSE + timeline patches; `perf.go` gzip/static caching/parallel helper; `invitations.go`; `notifications.go`. Templates/static embedded.

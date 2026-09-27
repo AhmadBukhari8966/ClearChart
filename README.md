@@ -1,10 +1,10 @@
 # ClearChart
 
-A shared patient and provider workspace built with Go net/http, html/template, PostgreSQL, and Datastar. Go renders the HTML; Datastar applies server-sent fragments for records, uploads, healing check-ins, and live patient selection. There is no custom application JavaScript.
+A shared patient and provider workspace built with Go net/http, html/template, PostgreSQL (Supabase), and Datastar. Go renders the HTML; Datastar applies server-sent fragments for records, uploads, healing check-ins, timeline filters, and live patient selection. There is no custom application JavaScript.
 
 ## Run locally
 
-Use Go 1.23 or newer from the active project folder:
+Use Go 1.23 or newer from the project folder:
 
 ```powershell
 Set-Location D:\projects\ClearChart
@@ -14,7 +14,11 @@ go run .
 
 Open [http://127.0.0.1:8080](http://127.0.0.1:8080). You arrive at **sign in**, with a link to create an account. Sign up, confirm your email if requested, sign in, then complete your patient or provider profile. Returning accounts go to their own dashboard.
 
-PostgreSQL and Supabase Auth configuration are required. The server loads a local `.env` when present, and also accepts process environment variables. Keep your existing `DATABASE_URL`. The connection and Auth project must refer to the same intended Supabase project:
+Always run `go run .`, not `go run main.go`. Templates and CSS are embedded, so restart after editing them. If port 8080 is busy, stop the old process or set `$env:PORT='8081'`.
+
+## Configuration
+
+The server loads a local `.env` when present; process environment variables take precedence. Keep `.env` out of source control (already git-ignored).
 
 ```dotenv
 DATABASE_URL=postgresql://YOUR_DATABASE_CONNECTION?sslmode=require
@@ -25,29 +29,81 @@ PORT=8080
 COOKIE_SECURE=false
 ```
 
-`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_ANON_KEY` are supported key aliases. If `SUPABASE_URL` is omitted, the server can infer it from a standard Supabase database URL; set it explicitly for other connection formats. Use `COOKIE_SECURE=true` behind an HTTPS reverse proxy. Database passwords remain on the server. Tailwind, Datastar, and fonts load from CDNs.
+| Setting | Meaning |
+| --- | --- |
+| `DATABASE_URL` | Required lib/pq connection URL. For hosts without IPv6, use the Supabase session pooler (port 5432). |
+| `SUPABASE_URL` | Project API URL. Inferred from a standard direct (`db.REF.supabase.co`) or pooler (`postgres.REF`) URL when omitted. |
+| `SUPABASE_PUBLISHABLE_KEY` | Publishable key for Auth calls. Aliases: `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_ANON_KEY`. Never use a service-role key. |
+| `COOKIE_SECURE` | `true` behind HTTPS; `false` for plain HTTP local development. |
+| `HOST`, `PORT` | Defaults `127.0.0.1`, `8080`. Use `HOST=0.0.0.0` in containers. |
+| `JUDGE_MODE` | Optional `true`: adds a judge entry on the sign-in page. |
 
-For an **existing database**, apply [migrations/001_auth_identity.sql](migrations/001_auth_identity.sql) in the Supabase SQL editor before running this version. It adds the unique account-to-profile mapping without deleting profiles, records, or care-team links. Then apply [migrations/002_care_invitations.sql](migrations/002_care_invitations.sql) [migrations/003_record_categories.sql](migrations/003_record_categories.sql) (explicit body-area tags for timeline filters; existing records stay uncategorized), and [migrations/004_notifications_seen.sql](migrations/004_notifications_seen.sql) (doctor notification read marker). The server refuses to start until each is applied. For a new database, apply [schema.sql](schema.sql). SQL is not automatically applied at startup.
+Enable email/password sign-in in Supabase and set Authentication → URL Configuration → Site URL to your ClearChart address (locally `http://127.0.0.1:8080/login`).
 
-## Existing synthetic data
+## Database
 
-Your seeded database rows remain available. `seed.sql` and `seed_large.sql` remain optional, repeatable fixture scripts for database testing: two doctors, 303 patients, and each patient's notes, prescriptions, scan references, reports, and recovery scores. They are not executed by the running server.
+SQL is never applied automatically. For a **new database**, run [schema.sql](schema.sql). For an **existing database**, apply the additive migrations in order in the Supabase SQL editor; the server refuses to start until each is applied:
 
-New accounts start without care-team links. An administrator must explicitly connect a doctor's account to patients. [Authentication and testing setup](docs/authentication.md#connect-your-account-to-the-existing-synthetic-patients) includes SQL to connect your signed-in provider to the existing synthetic patients. Seeded profiles have no login credentials and are not automatically claimed by email.
+1. [001_auth_identity.sql](migrations/001_auth_identity.sql): maps Supabase Auth users to profiles.
+2. [002_care_invitations.sql](migrations/002_care_invitations.sql): doctor-to-patient invitations with patient consent.
+3. [003_record_categories.sql](migrations/003_record_categories.sql): explicit body-area tags for timeline filters; existing records stay uncategorized.
+4. [004_notifications_seen.sql](migrations/004_notifications_seen.sql): doctor notification read marker.
 
-The runtime memory store, automatic Go fixture seeding, demo account switcher, and automatic care-team assignments have been removed. The old fixture and test files have also been removed to simplify the repository.
+`seed.sql` and `seed_large.sql` are optional, repeatable fixture scripts (two doctors, 303 synthetic patients with records, scans, reports and recovery scores). The server never runs them.
 
-The scan handler now lives in `handlers.go`. Keep its template and `static/ct-scan.svg`: existing database records reference these images. Reports still save filenames only; AI assistance is rule-based; Apple Watch cards contain sample data with no device connected.
+### Care-team access
 
-## Checks and handoff
+New accounts start without care-team links. Doctors connect to patients through invitations (patient must accept with a matching account email). Seeded profiles have no login and cannot be claimed by signing up with their email.
+
+To give your own provider account access to the seeded cohort, run as an administrator after onboarding:
+
+```sql
+WITH testing_doctor AS (
+    SELECT id FROM public.profiles
+    WHERE role = 'doctor' AND auth_user_id IS NOT NULL
+      AND lower(email) = lower('your-doctor-email@example.org')
+), seeded_patients AS (
+    SELECT DISTINCT p.id
+    FROM public.profiles p
+    JOIN public.care_team c ON c.patient_id = p.id
+    JOIN public.profiles seed_doctor ON seed_doctor.id = c.doctor_id
+    WHERE p.role = 'patient' AND p.auth_user_id IS NULL
+      AND lower(p.email) LIKE '%@example.com'
+      AND lower(seed_doctor.email) IN ('sarah.chen@example.com', 'james.wilson@example.com')
+      AND seed_doctor.license_num LIKE 'DEMO-%'
+)
+INSERT INTO public.care_team (patient_id, doctor_id)
+SELECT p.id, d.id FROM seeded_patients p CROSS JOIN testing_doctor d
+ON CONFLICT (patient_id, doctor_id) DO NOTHING;
+```
+
+Reload the provider dashboard afterward.
+
+## Sessions and limits
+
+- Sessions are opaque cookies stored in server memory, capped at one hour (Supabase token lifetime). A restart or deploy signs everyone out. One signed-in account per browser; use a private window to test patient and doctor together.
+- Live updates use a process-local event hub, so run exactly **one** server instance.
+- Existing records reference `/static/ct-scan.svg` and `/mock-scans/...`; keep `static/ct-scan.svg` and `templates/mock_scan.html`.
+- Not implemented: password recovery, file storage (uploads keep filenames only), credential verification, care-access removal UI, audit logging. Summaries are rule-based, not medical advice.
+
+## Deploy (Fly.io)
+
+`Dockerfile`, `.dockerignore`, `fly.toml` and `deploy.env` (non-secret settings baked in as the image's `.env`; never put secrets there) are included.
+
+```powershell
+fly launch --no-deploy --copy-config
+fly secrets set DATABASE_URL='...' NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY='...'
+fly deploy
+fly scale count 1
+```
+
+Apply migrations before deploying, and add the `https://<app>.fly.dev` address to Supabase Auth URL settings.
+
+## Checks
 
 ```powershell
 go vet ./...
-go build -o clearchart.exe .
+go build
 ```
 
-The automated test suite has been removed at your request. Build and vet verify compilation and static checks; manually check login, onboarding, patient selection, record creation, and uploads after changes.
-
-Start with [the current maintainer handoff](docs/README.md), then [authentication setup and flow](docs/authentication.md). Older exhaustive function references and XML/SVG diagrams are retained with explicit historical labels where startup, authentication, and runtime fixture behavior changed.
-
-If port 8080 is occupied, stop your previous ClearChart process or set `$env:PORT='8081'` before starting a second instance. Always run `go run .`, not `go run main.go`, so Go includes the whole package. Restart after editing embedded templates or CSS.
+There is no automated test suite. After changes, manually check login, onboarding, patient selection, record creation with body areas, timeline filters, uploads, and invitations.
