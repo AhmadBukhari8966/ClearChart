@@ -3,7 +3,13 @@
 ## Current task
 Judge mode (2026-09-26). Builds and vets; temporary unit checks passed and were removed. NOT yet run against Supabase or clicked through in a browser.
 
-## Cleanup (latest, 2026-09-27)
+## Gemini AI summary (latest, 2026-09-27)
+- `ai.go`: patient "A little more clarity" card explains the latest doctor note via Gemini `generateContent` (REST, no new deps). System prompt: plain everyday language, faithful to the note, no new diagnoses/advice, plain text with "- " instruction lines.
+- Non-blocking: pages never wait for Gemini. Cache miss → card shows a loading state (bouncing dots, "Reading your doctor's note…", shimmer lines; CSS only, `.ai-thinking`) instead of any note text, one background generation per note (detached from the request; first version was tied to the request context and got `context canceled` on judge-pane reloads/SSE reconnects). One retry after 3 s on 503/429. On success the explanation is cached (note hash, max 1000) and `hub.publish(patientID)` makes the patient's live stream re-render the card. Failures log, also publish so the card leaves the loading state and shows the rule-based text; that note is not retried for 2 min (`failureCooldown`), preventing publish/retry loops.
+- Config: `GEMINI_API_KEY`, optional `GEMINI_MODEL` (default `gemini-3.8-flash`; 2.5-flash is closed to new keys). For Fly: `fly secrets set GEMINI_API_KEY=...`.
+- Verified: vet/build; real key returns 200 from gemini-3.8-flash (~3 s, occasional 503 high demand); temporary fake-transport test (503→retry, dedupe, publish, cache) passed and was removed. NOT verified end-to-end in a browser after the background change.
+
+## Cleanup (2026-09-27)
 - Deleted `docs/` (stale: memory store, demo login, body map, removed methods), `invitation_check_test.go` (temporary; passed before removal), local `clearchart.exe`. README rewritten as the single current reference (config, migrations 001–004, care-team linking SQL, limits, Fly deploy).
 - Removed dead CSS for the old Apple Watch/biometrics card, `mock-tag`, `notif-review-link` (34 rules, 4 shared selector lists trimmed; ~2.5 KB). staticcheck U1000 found no unused Go code.
 - Verified vet/build/test. Kept: `.tools/` (1.2 GB local test PostgreSQL, git-ignored), seeds, `.vscode/launch.json`, Fly GitHub workflow (needs `FLY_API_TOKEN` repo secret or it fails on push).

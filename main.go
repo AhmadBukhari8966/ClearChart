@@ -41,6 +41,7 @@ type app struct {
 	secureCookies bool
 	judgeDoctorID string            // empty unless JUDGE_MODE=true
 	judgePatients map[string]string // judge-linked patient ID -> email; guarded by mu
+	explainer     *explainer        // nil unless GEMINI_API_KEY is set
 }
 
 var labels = map[string]string{"note": "Clinical note", "prescription": "Prescription", "imaging": "Imaging", "pain": "Pain level", "mobility": "Mobility", "energy": "Energy"}
@@ -241,6 +242,11 @@ func main() {
 		log.Printf("Judge mode on: %d patients linked to the judge doctor. The sign-in page shows a judge entry.", len(a.judgePatients))
 	default:
 		log.Fatal("JUDGE_MODE must be true or false.")
+	}
+	if a.explainer = newExplainer(); a.explainer != nil {
+		log.Printf("AI summaries on (Gemini %s).", a.explainer.model)
+	} else {
+		log.Print("AI summaries off: GEMINI_API_KEY not set, using rule-based plain language.")
 	}
 	port := os.Getenv("PORT")
 	if port == "" {

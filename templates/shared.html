@@ -91,7 +91,7 @@
 {{end}}
 
 {{define "ai-summary"}}
-<section class="ai-card" id="ai-summary"><div class="ai-card-heading"><span class="ai-icon">{{template "icon-spark"}}</span><h2>A little more clarity</h2><span class="ai-label">AI ASSISTANCE</span></div><p class="ai-intro">Your care notes, in everyday language.</p><div class="ai-summary-copy">{{.Summary}}</div><div class="ai-disclosure">{{template "icon-spark"}} Automated summary · Rule-based, not medical advice</div></section>
+<section class="ai-card" id="ai-summary"><div class="ai-card-heading"><span class="ai-icon">{{template "icon-spark"}}</span><h2>A little more clarity</h2><span class="ai-label">AI ASSISTANCE</span></div><p class="ai-intro">Your care notes, in everyday language.</p>{{if .SummaryPending}}<div class="ai-thinking" role="status" aria-live="polite"><div class="ai-thinking-label"><span class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></span>Reading your doctor's note and putting it into simpler words…</div><div class="ai-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></div>{{else}}<div class="ai-summary-copy" role="status" aria-live="polite">{{.Summary}}</div>{{end}}<div class="ai-disclosure">{{template "icon-spark"}} {{if .SummaryAI}}AI-generated explanation of your latest note · Not medical advice, check with your doctor{{else if .SummaryPending}}AI is simplifying your latest note · This takes a few seconds{{else}}Automated summary · Rule-based, not medical advice{{end}}</div></section>
 {{end}}
 
 {{define "timeline-filters"}}

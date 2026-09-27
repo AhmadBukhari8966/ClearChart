@@ -45,6 +45,7 @@ type Dashboard struct {
 	Attention                                   []Attention
 	AttentionCount                              int
 	CSRF, Mode, Summary, Role, ViewID           string
+	SummaryAI, SummaryPending                   bool // Summary came from Gemini / a Gemini explanation is being generated
 	Filter                                      timelineFilter
 	RecordCount, UploadCount, NotificationCount int
 	Today                                       time.Time

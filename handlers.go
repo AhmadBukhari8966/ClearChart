@@ -43,7 +43,7 @@ func (a *app) dashboardData(ctx context.Context, s session, patientID string, fi
 	d.Patient, d.Doctors, d.Uploads, d.Healing = *b.Patient, b.Doctors, b.Uploads, b.Healing
 	d.RecordCount, d.UploadCount = len(b.Records), len(b.Uploads)
 	if s.Role == "patient" {
-		d.Summary = plainSummary(b.Records)
+		d.Summary, d.SummaryAI, d.SummaryPending = a.patientSummary(d.Patient.ID, b.Records)
 	}
 	for _, record := range b.Records {
 		if filter.matches(record) {

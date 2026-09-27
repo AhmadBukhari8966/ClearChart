@@ -270,3 +270,18 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid #7f
 .main-content>.welcome-banner,.main-content>.summary-strip,.main-content>.doctor-summary-strip{animation-delay:.05s}
 .main-content>.dashboard-grid{animation-delay:.1s}
 @media(max-width:820px){.doctor-summary-strip{gap:8px}.doctor-summary-strip>div{padding:12px;flex-direction:column;align-items:flex-start}.doctor-summary-strip strong,.summary-item strong{font-size:24px}}
+
+.ai-summary-copy{white-space:pre-line}
+/* AI card loading state while Gemini simplifies the latest note */
+.ai-thinking{margin-top:11px}
+.ai-thinking-label{display:flex;align-items:center;gap:9px;font-size:11px;color:#808467;line-height:1.6}
+.ai-dots{display:inline-flex;gap:4px;flex-shrink:0}
+.ai-dots i{width:6px;height:6px;border-radius:50%;background:#9b9977;animation:ai-bounce 1.2s infinite ease-in-out}
+.ai-dots i:nth-child(2){animation-delay:.15s}
+.ai-dots i:nth-child(3){animation-delay:.3s}
+.ai-skeleton{display:grid;gap:8px;margin-top:13px}
+.ai-skeleton span{height:9px;border-radius:5px;background:linear-gradient(90deg,#e6e4d6 25%,#f6f5ee 50%,#e6e4d6 75%);background-size:200% 100%;animation:ai-shimmer 1.4s infinite linear}
+.ai-skeleton span:nth-child(2){width:88%}
+.ai-skeleton span:nth-child(3){width:62%}
+@keyframes ai-bounce{0%,80%,100%{transform:translateY(0);opacity:.45}40%{transform:translateY(-4px);opacity:1}}
+@keyframes ai-shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
