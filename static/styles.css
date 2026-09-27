@@ -168,3 +168,20 @@ input::placeholder,textarea::placeholder{color:#75806e;opacity:1}
 .judge-empty{flex:1;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted);font-size:13px}
 @media(max-width:1100px){.judge-tour{grid-template-columns:minmax(0,1fr)}.judge-progress{flex-direction:row;align-items:center;justify-content:space-between}.judge-nav{justify-content:flex-end}.judge-tagline{display:none}}
 @media(max-width:900px){.judge-body{height:auto;overflow:visible}.judge-tour{margin:12px 14px 0}.judge-split{grid-template-columns:1fr;padding:12px 14px}.judge-pane iframe{flex:none;height:85vh}}
+
+/* Body-area checkboxes: undo the full-width global input style. */
+.category-picker label{white-space:nowrap}
+.category-picker input[type=checkbox]{width:13px;height:13px;padding:0;flex:none}
+
+/* Doctor "Needs attention" panel. */
+.attention-total{min-width:24px;height:24px;padding:0 7px;border-radius:99px;display:inline-grid;place-items:center;background:#f8e3df;color:#8a4a40;font-size:11px;font-weight:650}
+.attention-list{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:7px}
+.attention-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer}
+.attention-item:hover{border-color:#e7c3bb}.attention-item.chosen{border-color:#9fb88f;background:#f3f7ef}
+.attention-item .avatar{width:30px;height:30px;font-size:10px;flex:none}
+.attention-details{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.attention-details strong{font-size:12px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.attention-details small{font-size:10px;color:var(--muted)}
+.attention-score{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;font-size:12px;font-weight:700;flex:none;background:#fbe9e5;color:#a24d3f}
+.attention-mobility,.attention-energy{background:#fdf1dc;color:#9a6a1c}
+.attention-empty{display:flex;gap:8px;align-items:flex-start;margin:12px 0 0;font-size:11px;line-height:1.6;color:#687668}.attention-empty svg{width:16px;height:16px;flex:none;color:#7fa36b}

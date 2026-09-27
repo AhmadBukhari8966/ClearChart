@@ -28,11 +28,12 @@ type Healing struct {
 	Timestamp                 time.Time
 }
 
-type Biometric struct {
-	DoctorID   string
-	HeartRate  int
-	SleepHours float64
-	Timestamp  time.Time
+// Attention is a linked patient whose latest check-in is concerning:
+// pain 6+ or mobility/energy 4 or below.
+type Attention struct {
+	PatientID, Name, StatusType string
+	Value                       int
+	Timestamp                   time.Time
 }
 
 type Dashboard struct {
@@ -41,7 +42,8 @@ type Dashboard struct {
 	Records                                     []Record
 	Uploads, Reports                            []Upload
 	Healing                                     []Healing
-	Biometric                                   Biometric
+	Attention                                   []Attention
+	AttentionCount                              int
 	CSRF, Mode, Summary, Role, ViewID           string
 	Filter                                      timelineFilter
 	RecordCount, UploadCount, NotificationCount int
@@ -69,6 +71,7 @@ type Store interface {
 	PendingInvitationsForEmail(context.Context, string) ([]Invitation, error)
 	RecentInvitationActivity(context.Context, string) ([]Invitation, error)
 	JudgeWorkspace(context.Context) (string, map[string]string, error)
+	MarkNotificationsSeen(context.Context, string) error
 	Close() error
 }
 

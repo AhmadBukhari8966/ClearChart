@@ -71,7 +71,8 @@
                 are stored.</p>
             </section>
           </div>
-          <aside class="secondary-column" aria-label="Your profile and personal health">
+          <aside class="secondary-column" aria-label="Patients needing attention and your profile">
+            {{template "attention-panel" .}}
             <section class="panel doctor-profile-card"><span class="profile-kicker">MY PROFILE</span><span
                 class="avatar profile-avatar">{{initials .Profile.Name}}</span>
               <h2>{{.Profile.Name}}</h2>
@@ -81,52 +82,7 @@
                 <div><span>Email</span><strong>{{.Profile.Email}}</strong></div>
               </div><span class="profile-status">{{template "icon-check"}} Provider account</span>
             </section>
-            <section class="panel biometrics-card" id="biometrics">
-              <div class="section-heading">
-                <h2>Your health matters, too.</h2><span class="small-icon">{{template "icon-heart"}}</span>
-              </div>
-              <p class="section-subtitle">My personal data from Apple Watch</p>
-              <div class="watch-status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-                  aria-hidden="true">
-                  <rect x="5" y="5" width="14" height="14" rx="5" />
-                  <path d="m8 5 1-4h6l1 4M8 19l1 4h6l1-4m3-10h2v5" />
-                </svg>
-                <div><strong>Apple Watch</strong><span>Sample wellness snapshot</span></div><span
-                  class="mock-tag">MOCK</span>
-              </div>
-              <div class="biometric-numbers">
-                <div><span class="metric-title">♡ Resting heart rate</span><strong>{{if
-                    .Biometric.HeartRate}}{{.Biometric.HeartRate}}{{else}}--{{end}}<small>bpm</small></strong><span
-                    class="metric-caption">{{if .Biometric.HeartRate}}Sample reading{{else}}No sample
-                    reading{{end}}</span></div>
-                <div><span class="metric-title sleep-title">☾ Time asleep</span><strong>{{if
-                    .Biometric.SleepHours}}{{printf "%.1f"
-                    .Biometric.SleepHours}}{{else}}--{{end}}<small>hrs</small></strong><span class="metric-caption">Last
-                    night's sample</span></div>
-              </div>
-              <div class="sparkline-chart" role="img" aria-label="Illustrative weekly heart rate chart">
-                <div class="chart-guide"><span>80</span><span>60</span></div><svg viewBox="0 0 270 75"
-                  preserveAspectRatio="none" aria-hidden="true">
-                  <defs>
-                    <linearGradient id="heart-fill" x1="0" y1="0" x2="0" y2="1">
-                      <stop stop-color="#e1a399" stop-opacity=".25" />
-                      <stop offset="1" stop-color="#e1a399" stop-opacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M0 39C16 39 20 13 38 18S66 60 84 43s21-29 39-20 19 24 40 19 24-30 40-25 19 30 39 25 17-21 28-21V75H0Z"
-                    fill="url(#heart-fill)" />
-                  <path
-                    d="M0 39C16 39 20 13 38 18S66 60 84 43s21-29 39-20 19 24 40 19 24-30 40-25 19 30 39 25 17-21 28-21"
-                    stroke="#c38179" stroke-width="2.5" fill="none" />
-                </svg>
-              </div>
-              <div class="chart-days">
-                <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
-              <p class="biometric-disclosure">Illustrative data. No device is connected.</p>
-            </section>
             {{template "healing-panel" .}}
-            {{if .Patient.ID}}{{template "ai-summary" .}}{{end}}
             <div class="care-quote"><span>“</span>
               <p>When everyone sees the whole picture, better care follows.</p><small>THE CLEARCHART APPROACH</small>
             </div>

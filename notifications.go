@@ -137,6 +137,15 @@ func (a *app) notificationsPanel(w http.ResponseWriter, r *http.Request) {
 		Notifications: notifications,
 		Count:         len(notifications),
 	}
+	// Patient items are pending invitations and clear once answered. A doctor's
+	// items are responses, so opening the panel marks them as read.
+	if s.Role == "doctor" {
+		if err := a.store.MarkNotificationsSeen(r.Context(), s.ProfileID); err != nil {
+			http.Error(w, "Could not update notifications.", 500)
+			return
+		}
+		data.Count = 0
+	}
 	startSSE(w)
 	if fragment, err := a.render("notification-panel", data); err == nil {
 		patch(w, "#notification-panel", "outer", fragment)

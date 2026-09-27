@@ -36,10 +36,6 @@ func (s *postgresStore) JudgeWorkspace(ctx context.Context) (string, map[string]
 	if _, err = tx.ExecContext(ctx, `INSERT INTO care_team(patient_id,doctor_id) SELECT id,$1::uuid FROM profiles WHERE role='patient' ON CONFLICT DO NOTHING`, doctor); err != nil {
 		return "", nil, err
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO mock_biometric_data(doctor_id,heart_rate,sleep_hours)
- SELECT $1::uuid,64,7.4 WHERE NOT EXISTS (SELECT 1 FROM mock_biometric_data WHERE doctor_id=$1::uuid)`, doctor); err != nil {
-		return "", nil, err
-	}
 	rows, err := tx.QueryContext(ctx, `SELECT p.id::text,p.email FROM profiles p JOIN care_team c ON c.patient_id=p.id WHERE c.doctor_id=$1::uuid`, doctor)
 	if err != nil {
 		return "", nil, err

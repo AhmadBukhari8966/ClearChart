@@ -183,7 +183,7 @@ func main() {
 	defer store.Close()
 	// Schema checks are independent; run them concurrently.
 	checkCtx, checkCancel := context.WithTimeout(ctx, 5*time.Second)
-	var authErr, invitationErr, categoryErr error
+	var authErr, invitationErr, categoryErr, notificationErr error
 	parallel(
 		func() error {
 			if _, e := store.ProfileByAuthUserID(checkCtx, "00000000-0000-0000-0000-000000000000"); e != nil && !errors.Is(e, ErrNotFound) {
@@ -199,6 +199,10 @@ func main() {
 			_, categoryErr = store.Records(checkCtx, "00000000-0000-0000-0000-000000000000")
 			return nil
 		},
+		func() error {
+			notificationErr = store.MarkNotificationsSeen(checkCtx, "00000000-0000-0000-0000-000000000000")
+			return nil
+		},
 	)
 	checkCancel()
 	if authErr != nil {
@@ -209,6 +213,9 @@ func main() {
 	}
 	if categoryErr != nil {
 		log.Fatal("Record category schema is not ready. Apply migrations/003_record_categories.sql (schema.sql for a new database).")
+	}
+	if notificationErr != nil {
+		log.Fatal("Notification schema is not ready. Apply migrations/004_notifications_seen.sql (schema.sql for a new database).")
 	}
 	a, err := newApp(store, "Supabase connected")
 	if err != nil {

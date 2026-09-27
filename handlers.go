@@ -36,15 +36,15 @@ func (a *app) dashboardData(ctx context.Context, s session, patientID string, fi
 	}
 	d.Profile = *b.Profile
 	d.Patients, d.Reports, d.NotificationCount = b.Patients, b.Reports, b.NotificationCount
-	if b.Biometric != nil {
-		d.Biometric = *b.Biometric
-	}
+	d.Attention, d.AttentionCount = b.Attention, b.AttentionCount
 	if b.Patient == nil {
 		return d, nil
 	}
 	d.Patient, d.Doctors, d.Uploads, d.Healing = *b.Patient, b.Doctors, b.Uploads, b.Healing
 	d.RecordCount, d.UploadCount = len(b.Records), len(b.Uploads)
-	d.Summary = plainSummary(b.Records)
+	if s.Role == "patient" {
+		d.Summary = plainSummary(b.Records)
+	}
 	for _, record := range b.Records {
 		if filter.matches(record) {
 			d.Records = append(d.Records, record)

@@ -32,7 +32,7 @@
     <a class="nav-link" href="/invitations">{{template "icon-people"}}<span>Invite patients</span></a>
     <a class="nav-link" href="#my-patients">{{template "icon-people"}}<span>My patients</span></a>
     <a class="nav-link" href="#reports-center">{{template "icon-record"}}<span>Patient reports</span></a>
-    <a class="nav-link" href="#biometrics">{{template "icon-heart"}}<span>My personal data</span></a>
+    <a class="nav-link" href="#attention">{{template "icon-heart"}}<span>Needs attention</span>{{if .AttentionCount}}<span class="nav-count">{{.AttentionCount}}</span>{{end}}</a>
     {{else}}
     <a class="nav-link" href="#health-timeline">{{template "icon-record"}}<span>Health timeline</span></a>
     <a class="nav-link" href="#care-team">{{template "icon-people"}}<span>My care team</span><span class="nav-count">{{len .Doctors}}</span></a>

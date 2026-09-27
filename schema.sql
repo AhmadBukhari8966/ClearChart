@@ -168,3 +168,6 @@ CREATE TABLE IF NOT EXISTS public.medical_record_categories (
 CREATE INDEX IF NOT EXISTS medical_record_categories_category_idx ON public.medical_record_categories(category, record_id);
 ALTER TABLE public.medical_record_categories ENABLE ROW LEVEL SECURITY;
 COMMIT;
+
+-- Migration 004: notification read marker.
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS notifications_seen_at timestamptz;

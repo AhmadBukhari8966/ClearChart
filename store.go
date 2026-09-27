@@ -104,6 +104,15 @@ const dashboardQuery = `WITH pts AS (
   SELECT p.*, row_number() OVER (ORDER BY p.name,p.id) AS rn
   FROM profiles p JOIN care_team c ON c.patient_id=p.id
   WHERE $2='doctor' AND c.doctor_id=$1::uuid
+), flagged AS (
+  -- Each linked patient's most concerning latest check-in, most severe first.
+  SELECT DISTINCT ON (h.patient_id) h.patient_id,p.name,h.status_type,h.value,h.timestamp,
+    CASE WHEN h.status_type='pain' THEN h.value ELSE 11-h.value END AS severity
+  FROM (SELECT DISTINCT ON (hp.patient_id,hp.status_type) hp.* FROM healing_progress hp JOIN pts ON pts.id=hp.patient_id
+    ORDER BY hp.patient_id,hp.status_type,hp.timestamp DESC,hp.id DESC) h
+  JOIN pts p ON p.id=h.patient_id
+  WHERE (h.status_type='pain' AND h.value>=6) OR (h.status_type<>'pain' AND h.value<=4)
+  ORDER BY h.patient_id,severity DESC,h.timestamp DESC
 ), sel AS (
   SELECT CASE WHEN $2='patient' THEN $1::uuid
     WHEN $4='' THEN (SELECT id FROM pts WHERE rn=1)
@@ -123,12 +132,13 @@ SELECT json_build_object(
    FROM healing_progress hp JOIN sel ON sel.id=hp.patient_id ORDER BY hp.status_type,hp.timestamp DESC,hp.id DESC) h),'[]'),
  'reports',CASE WHEN $2='doctor' THEN COALESCE((SELECT json_agg(json_build_object('id',u.id,'patientid',u.patient_id,'filename',u.file_name,'timestamp',u.timestamp,'patientname',p.name) ORDER BY u.timestamp DESC,u.id DESC)
    FROM patient_uploads u JOIN pts p ON p.id=u.patient_id),'[]') ELSE '[]' END,
- 'biometric',CASE WHEN $2='doctor' THEN (SELECT json_build_object('doctorid',b.doctor_id,'heartrate',b.heart_rate,'sleephours',b.sleep_hours,'timestamp',b.timestamp)
-   FROM mock_biometric_data b WHERE b.doctor_id=$1::uuid ORDER BY b.timestamp DESC LIMIT 1) END,
+ 'attention',CASE WHEN $2='doctor' THEN COALESCE((SELECT json_agg(json_build_object('patientid',f.patient_id,'name',f.name,'statustype',f.status_type,'value',f.value,'timestamp',f.timestamp) ORDER BY f.severity DESC,f.timestamp DESC)
+   FROM (SELECT * FROM flagged ORDER BY severity DESC,timestamp DESC LIMIT 6) f),'[]') ELSE '[]' END,
+ 'attentioncount',CASE WHEN $2='doctor' THEN (SELECT count(*) FROM flagged) ELSE 0 END,
  'notificationcount',CASE WHEN $2='patient' THEN (SELECT count(*) FROM (SELECT 1 FROM care_invitations i JOIN profiles d ON d.id=i.doctor_id
      WHERE lower(i.email)=lower($3) AND i.status='pending' AND i.expires_at>now() LIMIT 50) x)
    ELSE (SELECT count(*) FROM (SELECT 1 FROM care_invitations i WHERE i.doctor_id=$1::uuid AND i.status IN ('accepted','declined')
-     AND i.responded_at>=now()-interval '30 days' LIMIT 50) x) END
+     AND i.responded_at>=GREATEST(now()-interval '30 days',(SELECT COALESCE(v.notifications_seen_at,'-infinity') FROM profiles v WHERE v.id=$1::uuid)) LIMIT 50) x) END
 )`
 
 // DashboardBundle is every read a dashboard needs, loaded by one query.
@@ -138,7 +148,8 @@ type DashboardBundle struct {
 	Records           []Record
 	Uploads, Reports  []Upload
 	Healing           []Healing
-	Biometric         *Biometric
+	Attention         []Attention
+	AttentionCount    int
 	NotificationCount int
 }
 
@@ -213,6 +224,12 @@ func (s *postgresStore) Healing(ctx context.Context, patient string) ([]Healing,
 		out = append(out, h)
 	}
 	return out, rows.Err()
+}
+// MarkNotificationsSeen resets the doctor's unread count; the panel still
+// lists the last 30 days of activity.
+func (s *postgresStore) MarkNotificationsSeen(ctx context.Context, profile string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE profiles SET notifications_seen_at=now() WHERE id=$1`, profile)
+	return err
 }
 func (s *postgresStore) IsCareTeam(ctx context.Context, patient, doctor string) (bool, error) {
 	var ok bool

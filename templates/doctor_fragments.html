@@ -73,3 +73,24 @@
   <div id="timeline" class="timeline-list doctor-timeline">{{template "timeline-items" .}}</div>
 </section>
 {{end}}
+
+{{define "attention-panel"}}
+<section class="panel attention-card" id="attention">
+  <div class="section-heading">
+    <div>
+      <h2>Needs attention</h2>
+      <p class="section-subtitle">Latest check-ins with pain 6+ or mobility/energy 4 or below, most urgent first.</p>
+    </div>{{if .AttentionCount}}<span class="attention-total" aria-label="{{.AttentionCount}} patients flagged">{{.AttentionCount}}</span>{{end}}
+  </div>
+  {{if .Attention}}<ul class="attention-list">{{range .Attention}}
+    <li><a class="attention-item" href="/dashboard/doctor/{{$.Profile.ID}}?patient={{.PatientID}}"
+      data-on:click__prevent="!$_savingnote &amp;&amp; ($selectedpatient = '{{.PatientID}}')"
+      data-class:chosen="$selectedpatient === '{{.PatientID}}'">
+      <span class="avatar avatar-sage">{{initials .Name}}</span>
+      <span class="attention-details"><strong>{{.Name}}</strong><small>{{label .StatusType}} {{.Value}}/10 &middot; {{shortDate .Timestamp}}</small></span>
+      <span class="attention-score attention-{{.StatusType}}">{{.Value}}</span></a></li>{{end}}
+  </ul>
+  {{if gt .AttentionCount (len .Attention)}}<p class="form-hint">Showing the {{len .Attention}} most urgent of {{.AttentionCount}} flagged patients.</p>{{end}}
+  {{else}}<p class="attention-empty">{{template "icon-check"}} No concerning check-ins right now. Patients appear here as soon as they report high pain or low mobility or energy.</p>{{end}}
+</section>
+{{end}}

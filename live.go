@@ -252,10 +252,13 @@ func (a *app) snapshot(w http.ResponseWriter, d Dashboard) {
 	} else {
 		patch(w, "#reports", "inner", reports.String())
 	}
-	if d.Patient.ID != "" {
+	// The plain-language card is patient-only; the attention list is doctor-only.
+	if d.Role == "patient" {
 		if h, e := a.render("ai-summary", d); e == nil {
 			patch(w, "#ai-summary", "outer", h)
 		}
+	} else if h, e := a.render("attention-panel", d); e == nil {
+		patch(w, "#attention", "outer", h)
 	}
 	if h, e := a.render("healing-panel", d); e == nil {
 		patch(w, "#healing-panel", "outer", h)

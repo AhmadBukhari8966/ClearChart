@@ -3,7 +3,15 @@
 ## Current task
 Judge mode (2026-09-26). Builds and vets; temporary unit checks passed and were removed. NOT yet run against Supabase or clicked through in a browser.
 
-## Judge mode (this change)
+## Doctor fixes (latest, 2026-09-26)
+- **Needs migration 004** (`migrations/004_notifications_seen.sql`, also appended to schema.sql): adds `profiles.notifications_seen_at`. Server refuses to start until applied.
+- Doctor notification badge resets: opening the panel calls `MarkNotificationsSeen`; count = responses since `max(now-30d, seen_at)`. Patient badge unchanged (pending invites clear when answered).
+- Body-area checkbox pills: override global `input{width:100%}` so checkboxes are 13px and labels don't wrap.
+- Doctor Apple Watch card and biometric query removed (mock_biometric_data table untouched); judge no longer seeds it. Replaced by live "Needs attention" panel (top of right column, sidebar link with count): linked patients whose latest check-in is pain ≥6 or mobility/energy ≤4, 6 most severe shown, click selects patient. Thresholds chosen because seed data never exceeds pain 6 / below mobility 4 (84 of 307 flagged on current data).
+- Plain-language ("AI") card removed from the doctor side; patient-only now. Judge tour steps 4 and 6 updated.
+- Verified: vet/build, template render checks, read-only run of the new dashboard SQL against Supabase (~0.3 s, 307 patients). Not browser-tested.
+
+## Judge mode (previous change)
 - `JUDGE_MODE=true` (added to `.env`): at startup `JudgeWorkspace()` (judge.go) upserts doctor profile "Dr. Judge Demo" (`judge@clearchart.demo`, no auth_user_id), links it to every patient in `care_team` (ON CONFLICT DO NOTHING; additive, no migration), adds one mock biometric row, and caches linked patient ID→email in `app.judgePatients`. Rerun on each judge entry to pick up new signups.
 - Sign-in page shows "Enter judge mode" (POST /judge, auth CSRF cookie) only when enabled. Issues a 4 h opaque session with `Judge: true` as the judge doctor. Normal Supabase login unchanged.
 - `sessionFor(r, "patient")` for judge sessions acts as the patient named by the `{id}` path value or an already-parsed `patient_id` form field, only if linked to the judge doctor (fail closed). Stateless, so several patient tabs work at once.
