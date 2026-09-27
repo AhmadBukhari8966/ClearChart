@@ -3,7 +3,18 @@
 ## Current task
 Judge mode (2026-09-26). Builds and vets; temporary unit checks passed and were removed. NOT yet run against Supabase or clicked through in a browser.
 
-## Toast fix (latest)
+## Visual polish (latest, 2026-09-26)
+- CSS-only block at the end of `static/styles.css` ("Visual polish"): softer panel shadows/radii, stronger section titles, serif stat numerals with doctor stats as separate cards, subtle header gradient, sticky topbar (solid bg, no backdrop-filter), hover lift on patient/attention/report cards, selected-patient accent, gradient buttons with press state, input focus rings and focus-visible outlines, rounded graded healing bars, timeline entry hover, thin scrollbars, one 0.35 s load entrance on page-level containers only (SSE patches never re-trigger it; reduced-motion honored).
+- No JS, images, fonts or templates changed. Screenshots checked at 1440px and 920px.
+
+## Layout balance (2026-09-26)
+- Dashboards use golden-ratio columns (`1.618fr / 1fr`, ≥821px) instead of a fixed narrow side column.
+- Doctor: "Invite a patient" moved into the header beside "Add a care update"; Patient reports center and profile card moved to the right column (Needs attention, Healing status, Reports, Profile, quote); doctor timeline scrolls inside its panel (max 640px).
+- Patient: plain-language card and Your documents moved to the right column (Healing, Clarity, Documents, Care team, privacy note); timeline has the left column to itself.
+- Side-column tweaks: heading icons stay on the title row, report "Patient upload" badges hidden, compact dropzone.
+- Verified with headless-Edge screenshots of real data at 1440px and 920px (judge pane width); temporary render test removed.
+
+## Toast fix
 - Floating `#form-feedback` toast never hid. Now fades via CSS after 4 s (errors 8 s, paused on hover). All `#form-feedback` patches use Datastar `replace` mode (confirmed in v1.0.3 bundle) so each message restarts the timer. vet/build pass; not browser-tested.
 
 ## Doctor fixes (2026-09-26)

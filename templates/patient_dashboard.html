@@ -68,6 +68,10 @@
               <div id="timeline" class="timeline-list">{{template "timeline-items" .}}</div>
               <div class="timeline-end"><span></span> Your story, connected <span></span></div>
             </section>
+          </div>
+          <aside class="secondary-column" aria-label="Your care at a glance">
+            {{template "healing-panel" .}}
+            {{template "ai-summary" .}}
             <section class="panel uploads-panel" id="patient-uploads">
               <div class="section-heading">
                 <div>
@@ -90,9 +94,6 @@
               </form>
               <ul id="uploads" class="uploads-list">{{range .Uploads}}{{template "upload" .}}{{end}}</ul>
             </section>
-          </div>
-          <aside class="secondary-column" aria-label="Your care at a glance">
-            {{template "healing-panel" .}}
             <section class="panel care-team-card" id="care-team">
               <div class="section-heading">
                 <h2>My care team</h2><span class="team-count">{{len .Doctors}}</span>
@@ -106,7 +107,6 @@
                 </div>{{else}}<p class="muted-copy">Your providers will appear here once your care team is connected.</p>{{end}}</div>
               <div class="team-footer">{{template "icon-check"}} One team. One shared picture.</div>
             </section>
-            {{template "ai-summary" .}}
             <div class="privacy-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
                 aria-hidden="true">
                 <path d="m12 3 8 3v6c0 4-4 7-8 9-4-2-8-5-8-9V6l8-3Z" />

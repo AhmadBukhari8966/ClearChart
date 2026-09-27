@@ -17,9 +17,9 @@
             <p class="eyebrow">BETTER TOGETHER. CLEARER FOR EVERYONE.</p>
             <h1>Good care starts <em>with connection.</em></h1>
             <p class="page-description">Welcome, {{.Profile.Name}}. Your patients' stories, in one place.</p>
-          </div>{{if .Patient.ID}}<a class="button button-primary" href="#new-record">+ Add a care update</a>{{end}}
+          </div>
+          <div class="heading-actions"><a class="button button-quiet" href="/invitations">+ Invite a patient</a>{{if .Patient.ID}}<a class="button button-primary" href="#new-record">+ Add a care update</a>{{end}}</div>
         </div>
-        <p class="my-4"><a class="button button-primary" href="/invitations">+ Invite a patient</a></p>
         <div class="doctor-summary-strip">
           <div><span class="summary-icon sage">{{template "icon-people"}}</span><strong>{{len
               .Patients}}</strong><span>connected patients</span></div>
@@ -58,6 +58,10 @@
             </section>
             {{template "doctor-record-form" .}}
             {{template "doctor-timeline" .}}
+          </div>
+          <aside class="secondary-column" aria-label="Patients needing attention and your profile">
+            {{template "attention-panel" .}}
+            {{template "healing-panel" .}}
             <section class="panel reports-panel" id="reports-center">
               <div class="section-heading">
                 <div>
@@ -70,9 +74,6 @@
               <p class="form-hint">Scroll to browse shared reports. Reports track filenames only. No file contents
                 are stored.</p>
             </section>
-          </div>
-          <aside class="secondary-column" aria-label="Patients needing attention and your profile">
-            {{template "attention-panel" .}}
             <section class="panel doctor-profile-card"><span class="profile-kicker">MY PROFILE</span><span
                 class="avatar profile-avatar">{{initials .Profile.Name}}</span>
               <h2>{{.Profile.Name}}</h2>
@@ -82,7 +83,6 @@
                 <div><span>Email</span><strong>{{.Profile.Email}}</strong></div>
               </div><span class="profile-status">{{template "icon-check"}} Provider account</span>
             </section>
-            {{template "healing-panel" .}}
             <div class="care-quote"><span>“</span>
               <p>When everyone sees the whole picture, better care follows.</p><small>THE CLEARCHART APPROACH</small>
             </div>

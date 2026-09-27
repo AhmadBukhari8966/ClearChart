@@ -190,3 +190,83 @@ input::placeholder,textarea::placeholder{color:#75806e;opacity:1}
 .app-shell #form-feedback.error:not(:empty){animation-delay:8s}
 .app-shell #form-feedback:not(:empty):hover{animation-play-state:paused}
 @keyframes toast-out{to{opacity:0;visibility:hidden}}
+
+/* Golden-ratio dashboards: main column ~61.8%, side column ~38.2%, so both
+   columns carry similar weight and end near the same height. */
+@media(min-width:821px){.dashboard-grid{grid-template-columns:minmax(0,1.618fr) minmax(250px,1fr)}}
+.heading-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.heading-actions .button{margin:0;width:auto}
+.button-quiet{background:#fff;border-color:#d7e0cf;color:var(--forest)}.button-quiet:hover{background:var(--sage)}
+@media(max-width:820px){.heading-actions{display:none}}
+/* Doctor timeline scrolls within its panel, like the patient directory. */
+.doctor-timeline{max-height:640px;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding-right:8px}
+/* Side-column documents panel: compact dropzone. */
+.secondary-column .upload-dropzone{padding:18px 14px}
+.secondary-column .upload-dropzone input[type=file]{max-width:100%}
+.secondary-column .uploads-list{max-height:260px;overflow-y:auto;overscroll-behavior-y:contain}
+/* Side-column panels: keep heading icons on the title row and give report names room. */
+.secondary-column .section-heading{flex-wrap:nowrap;align-items:flex-start}
+.secondary-column .section-heading>div{min-width:0}
+.secondary-column .report-row .type-badge{display:none}
+.secondary-column .upload-row strong{overflow-wrap:anywhere}
+
+/* ---- Visual polish (CSS only: static gradients and shadows, no filters or
+   scripted effects; motion is limited to transform/opacity and honors
+   prefers-reduced-motion via the global rule above). ---- */
+:root{--shadow-sm:0 1px 2px #193f330a;--shadow-md:0 1px 2px #193f330a,0 10px 28px -14px #193f3326;--ring:0 0 0 3px #9fb88f55}
+.workspace{background:radial-gradient(900px 340px at 78% -60px,#e6eedd 0%,#e6eedd00 70%),var(--paper)}
+.topbar{position:sticky;top:0;z-index:5;background:#f9faf7f2}
+
+/* Panels: softer depth, rounder corners, clearer titles. */
+.panel{border-color:#e4e9de;border-radius:14px;box-shadow:var(--shadow-md)}
+.section-heading h2{font-size:15px;font-weight:600;color:#2f4535}
+.section-subtitle{color:#7d8b7c}
+.welcome-banner{border-radius:16px;background:linear-gradient(120deg,#eaf1df 0%,#e3ecd6 55%,#dde8cf 100%);box-shadow:var(--shadow-sm)}
+
+/* Stat strips: serif numerals as the headline figures. */
+.doctor-summary-strip{background:transparent;border:0;padding:0;gap:14px}
+.doctor-summary-strip>div{background:var(--white);border:1px solid #e4e9de;border-radius:14px;padding:18px 20px;box-shadow:var(--shadow-md);justify-content:flex-start;font-size:10px}
+.doctor-summary-strip>div:last-child{border-right:1px solid #e4e9de}
+.doctor-summary-strip strong,.summary-item strong{font-family:var(--serif);font-weight:400;font-size:32px;letter-spacing:-.5px;color:#26402f;line-height:1}
+.summary-strip{border-radius:14px;box-shadow:var(--shadow-md);border-color:#e4e9de}
+.summary-item strong small{font-family:var(--sans);font-size:10px}
+
+/* Interactive cards: gentle lift on hover, clear selected state. */
+.patient-option,.attention-item,.upload-row,.timeline-item{transition:transform .15s ease,border-color .15s ease,background-color .15s ease}
+.patient-option{border-radius:10px;background:#fff}
+.patient-option:hover,.attention-item:hover{transform:translateY(-1px);border-color:#c9d8bd}
+.patient-option.chosen{border-color:#9fb88f;background:linear-gradient(180deg,#f3f8ee,#ebf3e3);box-shadow:inset 3px 0 0 #6f9160}
+.attention-item{border-radius:10px}
+.selected-patient-summary{border-radius:10px;background:linear-gradient(180deg,#f4f8f0,#edf3e7)}
+.upload-row{border-radius:8px}
+.upload-row:hover{background:#f7f9f4}
+
+/* Buttons and fields: tactile press, visible focus. */
+.button{border-radius:8px}
+.button-primary{background:linear-gradient(180deg,#285a47,#1f4838);box-shadow:0 1px 0 #ffffff1f inset,0 4px 10px -4px #193f3366}
+.button-primary:hover{background:linear-gradient(180deg,#2e6650,#234f3e)}
+.button:active{transform:translateY(0) scale(.985)}
+input:not([type=checkbox]):not([type=file]),select,textarea{border-radius:8px;transition:border-color .15s ease,box-shadow .15s ease}
+input:focus,select:focus,textarea:focus{outline:0;border-color:#9fb88f;box-shadow:var(--ring)}
+a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid #7fa36b;outline-offset:2px;border-radius:6px}
+
+/* Healing bars: rounded, softly graded fills. */
+.progress-track{height:8px;border-radius:99px;background:#eef2e9}
+.progress-fill{height:8px;border-radius:99px;background:linear-gradient(90deg,#b7cba3,#8fae78)}
+.progress-fill.energy{background:linear-gradient(90deg,#b9c3dc,#8e9dc4)}
+.progress-fill.pain{background:linear-gradient(90deg,#e8cfa8,#d2a878)}
+
+/* Timeline: cards read as entries. */
+.timeline-content{padding:12px 14px;border-radius:10px;margin-top:-4px}
+.timeline-item:hover .timeline-content{background:#f7f9f4}
+
+/* Thin, quiet scrollbars in the scrolling lists. */
+#patient-directory,.doctor-timeline,.reports-panel #reports,.secondary-column .uploads-list{scrollbar-width:thin;scrollbar-color:#cfdac7 transparent}
+
+/* One short entrance on page load. Only page-level containers animate;
+   live SSE patches replace inner sections, so updates never re-trigger it. */
+@keyframes cc-rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.main-content>.page-heading,.main-content>.welcome-banner,.main-content>.summary-strip,.main-content>.doctor-summary-strip,.main-content>.dashboard-grid{animation:cc-rise .35s ease-out both}
+.main-content>.welcome-banner,.main-content>.summary-strip,.main-content>.doctor-summary-strip{animation-delay:.05s}
+.main-content>.dashboard-grid{animation-delay:.1s}
+@media(max-width:820px){.doctor-summary-strip{gap:8px}.doctor-summary-strip>div{padding:12px;flex-direction:column;align-items:flex-start}.doctor-summary-strip strong,.summary-item strong{font-size:24px}}
