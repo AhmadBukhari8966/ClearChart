@@ -46,7 +46,7 @@ func newExplainer() *explainer {
 	}
 	model := strings.TrimSpace(os.Getenv("GEMINI_MODEL"))
 	if model == "" {
-		model = "gemini-3.8-flash"
+		model = "gemini-3.5-flash-lite"
 	}
 	return &explainer{key: key, model: model, client: &http.Client{Timeout: 25 * time.Second}, cache: map[[32]byte]string{}, pending: map[[32]byte]bool{}, failed: map[[32]byte]time.Time{}}
 }

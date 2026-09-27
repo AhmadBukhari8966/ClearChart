@@ -38,7 +38,7 @@ COOKIE_SECURE=false
 | `HOST`, `PORT` | Defaults `127.0.0.1`, `8080`. Use `HOST=0.0.0.0` in containers. |
 | `JUDGE_MODE` | Optional `true`: adds a judge entry on the sign-in page. |
 | `GEMINI_API_KEY` | Optional Google AI Studio key. Patient "A little more clarity" card explains the latest doctor note with Gemini (note text is sent to Google). Unset or failing → rule-based text. Secret: use `fly secrets set` on Fly. |
-| `GEMINI_MODEL` | Optional, default `gemini-3.8-flash` (2.5-flash is closed to new keys). |
+| `GEMINI_MODEL` | Optional, default `gemini-3.5-flash-lite` (~0.5 s, larger free-tier quota than 3.8-flash, whose free tier has a 20-request limit; 2.5-flash is closed to new keys). |
 
 Enable email/password sign-in in Supabase and set Authentication → URL Configuration → Site URL to your ClearChart address (locally `http://127.0.0.1:8080/login`).
 
