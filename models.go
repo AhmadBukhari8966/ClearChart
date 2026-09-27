@@ -56,6 +56,7 @@ type Store interface {
 	ProfileByAuthUserID(context.Context, string) (Profile, error)
 	ProfileByEmail(context.Context, string) (Profile, error)
 	Dashboard(ctx context.Context, viewer, role, email, patient string) (DashboardBundle, error)
+	SearchPatients(ctx context.Context, doctorID, query string, limit int) ([]Profile, int, error)
 	Counts(context.Context, string) (int, int, error)
 	Records(context.Context, string) ([]Record, error)
 	Healing(context.Context, string) ([]Healing, error)

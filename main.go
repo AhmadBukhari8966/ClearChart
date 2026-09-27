@@ -106,6 +106,7 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("POST /upload-report", a.uploadReport)
 	mux.HandleFunc("POST /healing", a.addHealing)
 	mux.HandleFunc("GET /events/{role}/{id}", a.events)
+	mux.HandleFunc("GET /patients/search", a.searchPatients)
 	mux.HandleFunc("GET /mock-scans/{id}/{scan}", a.mockScan)
 	mux.HandleFunc("POST /judge", a.enterJudge)
 	mux.HandleFunc("GET /judge", a.judgeView)

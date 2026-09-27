@@ -8,7 +8,7 @@
 
 <body><a class="skip-link" href="#main-content">Skip to content</a>
   <div class="app-shell"
-    data-signals="{selectedpatient: '{{.Patient.ID}}', chartpatient: '{{.Patient.ID}}', timelinetype: '{{.Filter.Type}}', timelinecat: '{{.Filter.Category}}', _savingnote: false}"
+    data-signals="{selectedpatient: '{{.Patient.ID}}', chartpatient: '{{.Patient.ID}}', timelinetype: '{{.Filter.Type}}', timelinecat: '{{.Filter.Category}}', patientsearch: '', _savingnote: false}"
     data-effect="$selectedpatient; $timelinetype; $timelinecat; @get('/events/doctor/{{.Profile.ID}}?view={{.ViewID}}', {openWhenHidden: true, filterSignals: {include: /^(selectedpatient|chartpatient|timelinetype|timelinecat)$/}})">
     {{template "sidebar" .}}<div class="workspace" data-signals="{_notifOpen: false}">{{template "topbar" .}}
       <main class="main-content" id="main-content">
@@ -41,20 +41,11 @@
                   .Patients}}</span>
               </div>
               {{template "doctor-selected-patient" .}}
-              <p class="directory-hint" id="patient-directory-hint">{{if .Patients}}Scroll to browse {{len .Patients}} patients, then select a name to open their chart.{{else}}Your workspace is ready. Invite a patient using their email and share the invitation link.{{end}}</p>
-              <div class="patient-selector" id="patient-directory" role="region" tabindex="0"
-                aria-label="Choose a patient" aria-describedby="patient-directory-hint">
-                {{range .Patients}}<a class="patient-option {{if eq .ID $.Patient.ID}}chosen{{end}}"
-                  href="/dashboard/doctor/{{$.Profile.ID}}?patient={{.ID}}"
-                  data-on:click__prevent="!$_savingnote &amp;&amp; ($selectedpatient = '{{.ID}}')"
-                  data-class:chosen="$selectedpatient === '{{.ID}}'"
-                  data-attr:aria-current="$selectedpatient === '{{.ID}}' ? 'true' : null"
-                  {{if eq .ID $.Patient.ID}}aria-current="true"{{end}}><span class="avatar avatar-sage">{{initials
-                    .Name}}</span><span class="patient-option-details"><strong>{{.Name}}</strong><small>{{if .DOB}}Born
-                      {{.DOB}}{{end}}{{if .BloodType}} &middot; {{.BloodType}}{{end}}</small></span>
-                  <span class="selected-check">{{template "icon-check"}}</span></a>{{else}}<p
-                  class="muted-copy">Patients appear here after accepting your invitation. Refresh to see new connections.</p>{{end}}
-              </div>
+              {{if .Patients}}<div class="patient-search"><input type="search"
+                  id="patient-search" aria-label="Search patients" placeholder="Search patients by name or email" autocomplete="off"
+                  aria-controls="patient-directory" data-bind:patientsearch
+                  data-on:input__debounce.200ms="@get('/patients/search', {filterSignals: {include: /^(patientsearch|selectedpatient)$/}})"></div>{{end}}
+              {{template "patient-directory" .Directory}}
             </section>
             {{template "doctor-record-form" .}}
             {{template "doctor-timeline" .}}

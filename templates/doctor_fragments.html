@@ -1,3 +1,22 @@
+{{define "patient-directory"}}
+<div id="patient-directory-results">
+  <p class="directory-hint" id="patient-directory-hint" role="status" aria-live="polite">{{if .Query}}{{if .Matches}}{{.Matches}} {{if eq .Matches 1}}patient matches{{else}}patients match{{end}} “{{.Query}}”{{if gt .Matches (len .Patients)}}, showing the first {{len .Patients}}. Keep typing to narrow it down{{end}}.{{else}}No patients match “{{.Query}}”.{{end}}{{else if gt .Matches (len .Patients)}}Showing {{len .Patients}} of {{.Matches}} patients. Search to find anyone else.{{else if .Patients}}Select a name to open their chart.{{else}}Your workspace is ready. Invite a patient using their email and share the invitation link.{{end}}</p>
+  <div class="patient-selector" id="patient-directory" role="region" tabindex="0"
+    aria-label="Choose a patient" aria-describedby="patient-directory-hint">
+    {{range .Patients}}<a class="patient-option {{if eq .ID $.SelectedID}}chosen{{end}}"
+      href="/dashboard/doctor/{{$.DoctorID}}?patient={{.ID}}"
+      data-on:click__prevent="!$_savingnote &amp;&amp; ($selectedpatient = '{{.ID}}')"
+      data-class:chosen="$selectedpatient === '{{.ID}}'"
+      data-attr:aria-current="$selectedpatient === '{{.ID}}' ? 'true' : null"
+      {{if eq .ID $.SelectedID}}aria-current="true"{{end}}><span class="avatar avatar-sage">{{initials
+        .Name}}</span><span class="patient-option-details"><strong>{{.Name}}</strong><small>{{if .DOB}}Born
+          {{.DOB}}{{end}}{{if .BloodType}} &middot; {{.BloodType}}{{end}}</small></span>
+      <span class="selected-check">{{template "icon-check"}}</span></a>{{else}}{{if not .Query}}<p
+      class="muted-copy">Patients appear here after accepting your invitation. Refresh to see new connections.</p>{{end}}{{end}}
+  </div>
+</div>
+{{end}}
+
 {{define "doctor-selected-patient"}}
 <div id="selected-patient-summary" {{if .Patient.ID}}class="selected-patient-summary"{{end}}>
   {{if .Patient.ID}}
