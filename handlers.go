@@ -188,7 +188,7 @@ func (a *app) addRecord(w http.ResponseWriter, r *http.Request) {
 	startSSE(w)
 	a.writeTimeline(w, d)
 	writeCounts(w, d.RecordCount, d.UploadCount)
-	patch(w, "#form-feedback", "outer", feedbackHTML("Record shared with your patient. Their timeline is up to date.", false))
+	patch(w, "#form-feedback", "replace", feedbackHTML("Record shared with your patient. Their timeline is up to date.", false))
 	a.hub.publish(patientID, r.FormValue("view_id"))
 }
 
@@ -253,7 +253,7 @@ func (a *app) uploadReport(w http.ResponseWriter, r *http.Request) {
 	if records, uploads, err := a.store.Counts(r.Context(), s.ProfileID); err == nil {
 		writeCounts(w, records, uploads)
 	}
-	patch(w, "#form-feedback", "outer", feedbackHTML("Report name shared with your care team. File contents are not stored in this demo.", false))
+	patch(w, "#form-feedback", "replace", feedbackHTML("Report name shared with your care team. File contents are not stored in this demo.", false))
 	a.hub.publish(s.ProfileID, r.FormValue("view_id"))
 }
 
@@ -296,7 +296,7 @@ func (a *app) addHealing(w http.ResponseWriter, r *http.Request) {
 	}
 	startSSE(w)
 	patch(w, "#healing-panel", "outer", fragment)
-	patch(w, "#form-feedback", "outer", feedbackHTML("Check-in saved. Your care team can see how you're feeling.", false))
+	patch(w, "#form-feedback", "replace", feedbackHTML("Check-in saved. Your care team can see how you're feeling.", false))
 	a.hub.publish(s.ProfileID, d.ViewID)
 }
 
@@ -376,7 +376,7 @@ func (a *app) onboard(w http.ResponseWriter, r *http.Request) {
 	a.issueSession(w, r, s)
 	startSSE(w)
 	patch(w, "#onboarding-result", "outer", fmt.Sprintf(`<div id="onboarding-result" class="success-box" role="status"><strong>You're all set, %s.</strong><p>Your profile is ready. Care-team connections are assigned separately.</p><a class="button button-primary" href="/">Continue to my workspace &rarr;</a></div>`, html.EscapeString(p.Name)))
-	patch(w, "#form-feedback", "outer", feedbackHTML("Profile created successfully.", false))
+	patch(w, "#form-feedback", "replace", feedbackHTML("Profile created successfully.", false))
 }
 
 func feedbackHTML(message string, isError bool) string {
@@ -391,7 +391,7 @@ func (a *app) feedback(w http.ResponseWriter, message string, status int) {
 	// Datastar processes successful SSE responses. Validation errors are conveyed
 	// as visible HTML with no mutation, rather than triggering automatic retries.
 	startSSE(w)
-	patch(w, "#form-feedback", "outer", feedbackHTML(message, status >= 400))
+	patch(w, "#form-feedback", "replace", feedbackHTML(message, status >= 400))
 }
 
 func writeCounts(w http.ResponseWriter, records, uploads int) {

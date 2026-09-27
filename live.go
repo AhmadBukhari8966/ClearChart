@@ -210,7 +210,7 @@ func (a *app) doctorContext(w http.ResponseWriter, d Dashboard, replaceForm bool
 		}
 	}
 	if replaceForm {
-		patch(w, "#form-feedback", "outer", `<div id="form-feedback" role="status" aria-live="polite"></div>`)
+		patch(w, "#form-feedback", "replace", `<div id="form-feedback" role="status" aria-live="polite"></div>`)
 		chart, _ := json.Marshal(map[string]string{"chartpatient": d.Patient.ID})
 		patchSignals(w, string(chart))
 	}

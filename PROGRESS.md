@@ -3,7 +3,10 @@
 ## Current task
 Judge mode (2026-09-26). Builds and vets; temporary unit checks passed and were removed. NOT yet run against Supabase or clicked through in a browser.
 
-## Doctor fixes (latest, 2026-09-26)
+## Toast fix (latest)
+- Floating `#form-feedback` toast never hid. Now fades via CSS after 4 s (errors 8 s, paused on hover). All `#form-feedback` patches use Datastar `replace` mode (confirmed in v1.0.3 bundle) so each message restarts the timer. vet/build pass; not browser-tested.
+
+## Doctor fixes (2026-09-26)
 - **Needs migration 004** (`migrations/004_notifications_seen.sql`, also appended to schema.sql): adds `profiles.notifications_seen_at`. Server refuses to start until applied.
 - Doctor notification badge resets: opening the panel calls `MarkNotificationsSeen`; count = responses since `max(now-30d, seen_at)`. Patient badge unchanged (pending invites clear when answered).
 - Body-area checkbox pills: override global `input{width:100%}` so checkboxes are 13px and labels don't wrap.

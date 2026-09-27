@@ -185,3 +185,8 @@ input::placeholder,textarea::placeholder{color:#75806e;opacity:1}
 .attention-score{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;font-size:12px;font-weight:700;flex:none;background:#fbe9e5;color:#a24d3f}
 .attention-mobility,.attention-energy{background:#fdf1dc;color:#9a6a1c}
 .attention-empty{display:flex;gap:8px;align-items:flex-start;margin:12px 0 0;font-size:11px;line-height:1.6;color:#687668}.attention-empty svg{width:16px;height:16px;flex:none;color:#7fa36b}
+/* Floating feedback toast dismisses itself; "replace" patches restart the timer for each new message. */
+.app-shell #form-feedback:not(:empty){animation:toast-out .4s ease 4s forwards}
+.app-shell #form-feedback.error:not(:empty){animation-delay:8s}
+.app-shell #form-feedback:not(:empty):hover{animation-play-state:paused}
+@keyframes toast-out{to{opacity:0;visibility:hidden}}
