@@ -183,7 +183,7 @@ func (a *app) createInvitation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Show success message
-	patch(w, "#form-feedback", "replace", feedbackHTML("Invitation sent to "+email+".", false))
+	patch(w, "#form-feedback", "outer", feedbackHTML("Invitation sent to "+email+".", false))
 
 	// Notify the patient in real time if they are online, after the response
 	// is written so the doctor does not wait on the lookup.
@@ -257,7 +257,7 @@ func (a *app) respondInvitationInline(w http.ResponseWriter, r *http.Request) {
 	a.hub.publish(doctorID, "")
 	// Refresh the notification panel.
 	a.notificationsPanel(w, r)
-	patch(w, "#form-feedback", "replace", feedbackHTML(message, false))
+	patch(w, "#form-feedback", "outer", feedbackHTML(message, false))
 }
 func (a *app) revokeInvitation(w http.ResponseWriter, r *http.Request) {
 	if parseForm(w, r) != nil {
@@ -274,7 +274,7 @@ func (a *app) revokeInvitation(w http.ResponseWriter, r *http.Request) {
 	}
 	startSSE(w)
 	a.invitationList(w, r, s)
-	patch(w, "#form-feedback", "replace", feedbackHTML("Invitation revoked. It can no longer be accepted.", false))
+	patch(w, "#form-feedback", "outer", feedbackHTML("Invitation revoked. It can no longer be accepted.", false))
 }
 func (a *app) reviewInvitation(w http.ResponseWriter, r *http.Request) {
 	token := r.PathValue("token")

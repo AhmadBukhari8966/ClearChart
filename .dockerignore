@@ -1,0 +1,12 @@
+# Never ship secrets, local tooling, binaries or tests into the image.
+.env
+.env.*
+.git
+.tools
+.vscode
+*.exe
+*.test
+*_test.go
+*.log
+docs
+seed*.sql

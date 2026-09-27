@@ -3,7 +3,12 @@
 ## Current task
 Judge mode (2026-09-26). Builds and vets; temporary unit checks passed and were removed. NOT yet run against Supabase or clicked through in a browser.
 
-## Visual polish (latest, 2026-09-26)
+## Fly.io deploy (2026-09-27)
+- `Dockerfile` (distroless, HOST=0.0.0.0, PORT=8080), `.dockerignore` (excludes .env, .tools, tests, seeds), `fly.toml` (app `clearchart-proud-shell-6676`, region sjc near Supabase us-west-2, 1 always-on machine). Secrets on Fly: DATABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.
+- `deploy.env` (committed, non-secret) is copied to `/app/.env` in the image; currently `JUDGE_MODE=true`. Fly secrets/env override it. Never put secrets there.
+- Linux cross-compile verified; Docker image build not verified locally (no Docker).
+
+## Visual polish (2026-09-26)
 - CSS-only block at the end of `static/styles.css` ("Visual polish"): softer panel shadows/radii, stronger section titles, serif stat numerals with doctor stats as separate cards, subtle header gradient, sticky topbar (solid bg, no backdrop-filter), hover lift on patient/attention/report cards, selected-patient accent, gradient buttons with press state, input focus rings and focus-visible outlines, rounded graded healing bars, timeline entry hover, thin scrollbars, one 0.35 s load entrance on page-level containers only (SSE patches never re-trigger it; reduced-motion honored).
 - No JS, images, fonts or templates changed. Screenshots checked at 1440px and 920px.
 
