@@ -1,0 +1,159 @@
+{{define "judge.html"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Judge mode &middot; ClearChart</title>{{template "head"}}
+</head>
+<body class="judge-body">
+  <header class="judge-bar">
+    <a class="brand" href="/judge" aria-label="ClearChart judge mode">{{template "brand"}}</a>
+    <span class="judge-pill">JUDGE MODE</span>
+    <p class="judge-tagline">You're signed in as a doctor and a patient at once. Changes on one side reach the other live.</p>
+    <div class="judge-bar-actions">
+      <button type="button" class="judge-ghost" id="tour-toggle">Hide guide</button>
+      <form class="judge-exit" method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit" class="judge-ghost">Exit judge mode</button></form>
+    </div>
+  </header>
+
+  <section class="judge-tour" id="tour" aria-label="Guided tour" aria-live="polite">
+    <div class="judge-progress">
+      <span class="judge-count" id="tour-count">STEP 1 OF 8</span>
+      <div class="judge-dots" id="tour-dots" role="group" aria-label="Jump to step"></div>
+    </div>
+    <div class="judge-step">
+      <div class="judge-step-top"><span class="judge-side" id="tour-side" data-side="doctor">DOCTOR &middot; LEFT</span><h2 id="tour-title">Choose a patient</h2></div>
+      <p id="tour-text"></p>
+    </div>
+    <div class="judge-nav">
+      <button type="button" id="tour-back">&larr; Back</button>
+      <button type="button" class="judge-next" id="tour-next">Next &rarr;</button>
+    </div>
+  </section>
+
+  <main class="judge-split">
+    <section class="judge-pane judge-pane-doctor" id="pane-doctor" aria-label="Doctor view">
+      <div class="judge-pane-head"><span class="judge-dot"></span><strong>Doctor view</strong><small>Dr. Judge Demo &middot; linked to every patient</small><span class="judge-cue">Do this here</span><a href="/dashboard/doctor/{{.DoctorID}}" target="_blank" rel="noopener">Open in new tab &nearr;</a></div>
+      <iframe id="doctor-frame" src="/dashboard/doctor/{{.DoctorID}}" title="Doctor dashboard"></iframe>
+    </section>
+    <section class="judge-pane judge-pane-patient" id="pane-patient" aria-label="Patient view">
+      <div class="judge-pane-head"><span class="judge-dot"></span><strong>Patient view</strong><small id="patient-label">Follows the doctor's selection</small><span class="judge-cue">Do this here</span><a id="patient-tab" href="#" target="_blank" rel="noopener" hidden>Open in new tab &nearr;</a></div>
+      <p class="judge-empty" id="patient-empty">Select a patient on the doctor side to open their view here.</p>
+      <iframe id="patient-frame" title="Patient dashboard" hidden></iframe>
+    </section>
+  </main>
+  <script>
+    // Judge-only glue: a guided tour over two same-origin dashboards. The
+    // patient pane follows the doctor's selected patient, and each step
+    // scrolls to and outlines the section it talks about.
+    (() => {
+      const steps = [
+        {side: 'doctor', title: 'Choose a patient', doctor: '#my-patients',
+          text: 'Every patient in the database is listed under <b>My patients</b>. Click anyone. The right side signs in as that patient automatically.'},
+        {side: 'both', title: 'One person, two views', doctor: '#selected-patient-summary', patient: '#main-content',
+          text: 'Left is the doctor\'s chart for this patient. Right is the same person\'s own dashboard, with the same records written for a patient.'},
+        {side: 'doctor', title: 'Write a care update', doctor: '#new-record', patient: '#health-timeline',
+          text: 'In <b>A care update for&hellip;</b>, choose note, prescription or imaging, tag body areas, and share it. Keep an eye on the patient\'s timeline on the right.'},
+        {side: 'patient', title: 'Watch it arrive live', patient: '#health-timeline', doctor: '#ai-summary',
+          text: 'The update is already at the top of <b>Your health timeline</b>, with no refresh. <b>A little more clarity</b> rewrites medical jargon in plain language.'},
+        {side: 'both', title: 'Filter the timeline', doctor: '#timeline-filters', patient: '#timeline-filters',
+          text: 'Filter by record type (notes, prescriptions, imaging) and by body area on either side. Filters stay applied as new updates arrive.'},
+        {side: 'patient', title: 'Log how you feel', patient: '#healing-panel', doctor: '#healing-panel',
+          text: 'In <b>Healing status</b>, set pain, mobility or energy and click <b>Save check-in</b>. The doctor\'s Healing status on the left updates instantly.'},
+        {side: 'patient', title: 'Share a report', patient: '#patient-uploads', doctor: '#reports-center',
+          text: 'Upload any PDF, PNG or JPG under <b>Your documents</b> (only the filename is stored). It appears in the doctor\'s <b>Patient reports center</b>.'},
+        {side: 'doctor', title: 'Try another patient', doctor: '#my-patients', patient: '#care-team',
+          text: 'Pick someone else and the patient side follows. That\'s the tour! You can also exit and sign up normally to test real accounts and invitations.'},
+      ];
+      const sideLabel = {doctor: 'DOCTOR &middot; LEFT', patient: 'PATIENT &middot; RIGHT', both: 'BOTH SIDES'};
+      const $ = id => document.getElementById(id);
+      const frames = {doctor: $('doctor-frame'), patient: $('patient-frame')};
+      const panes = {doctor: $('pane-doctor'), patient: $('pane-patient')};
+      let step = 0, current = '';
+      try { step = Math.min(steps.length - 1, Math.max(0, +localStorage.getItem('judge-step') || 0)); } catch (e) {}
+
+      const docOf = side => { try { return frames[side].contentDocument; } catch (e) { return null; } };
+      // Outline the step's section inside a dashboard; scroll only on step changes.
+      const spotlight = (side, scroll) => {
+        const doc = docOf(side);
+        if (!doc || !doc.body) return;
+        if (!doc.getElementById('judge-spotlight-style')) {
+          const style = doc.createElement('style');
+          style.id = 'judge-spotlight-style';
+          style.textContent = '.judge-spotlight{outline:3px solid #e1a399!important;outline-offset:5px;border-radius:12px;animation:judge-pulse 1.4s ease-out 2}@keyframes judge-pulse{0%{box-shadow:0 0 0 0 #e1a399aa}100%{box-shadow:0 0 0 16px #e1a39900}}';
+          doc.head.appendChild(style);
+        }
+        const selector = steps[step][side];
+        doc.querySelectorAll('.judge-spotlight').forEach(el => { if (!selector || !el.matches(selector)) el.classList.remove('judge-spotlight'); });
+        const target = selector && doc.querySelector(selector);
+        if (!target) return;
+        if (!target.classList.contains('judge-spotlight')) target.classList.add('judge-spotlight');
+        if (scroll) target.scrollIntoView({behavior: 'smooth', block: 'start'});
+      };
+
+      const render = () => {
+        const s = steps[step];
+        $('tour-count').textContent = 'STEP ' + (step + 1) + ' OF ' + steps.length;
+        $('tour-side').dataset.side = s.side;
+        $('tour-side').innerHTML = sideLabel[s.side];
+        $('tour-title').textContent = s.title;
+        $('tour-text').innerHTML = s.text;
+        $('tour-back').disabled = step === 0;
+        $('tour-next').innerHTML = step === steps.length - 1 ? 'Start over &#8634;' : 'Next &rarr;';
+        [...$('tour-dots').children].forEach((dot, i) => {
+          dot.classList.toggle('done', i < step);
+          if (i === step) dot.setAttribute('aria-current', 'step'); else dot.removeAttribute('aria-current');
+        });
+        panes.doctor.classList.toggle('is-active', s.side !== 'patient');
+        panes.patient.classList.toggle('is-active', s.side !== 'doctor');
+        spotlight('doctor', true);
+        spotlight('patient', true);
+        try { localStorage.setItem('judge-step', step); } catch (e) {}
+      };
+      const go = i => { step = (i + steps.length) % steps.length; render(); };
+
+      steps.forEach((s, i) => {
+        const dot = document.createElement('button');
+        dot.type = 'button';
+        dot.title = (i + 1) + '. ' + s.title;
+        dot.setAttribute('aria-label', 'Step ' + (i + 1) + ': ' + s.title);
+        dot.addEventListener('click', () => go(i));
+        $('tour-dots').appendChild(dot);
+      });
+      $('tour-back').addEventListener('click', () => go(step - 1));
+      $('tour-next').addEventListener('click', () => go(step + 1));
+      $('tour-toggle').addEventListener('click', () => {
+        const hidden = $('tour').hidden = !$('tour').hidden;
+        $('tour-toggle').textContent = hidden ? 'Show guide' : 'Hide guide';
+      });
+
+      // The patient pane follows the doctor's selected patient.
+      const follow = () => {
+        const doc = docOf('doctor');
+        const chosen = doc && doc.querySelector('.patient-option.chosen');
+        if (!chosen) return;
+        const id = new URL(chosen.href).searchParams.get('patient');
+        if (!id || id === current) return;
+        current = id;
+        const url = '/dashboard/patient/' + id;
+        frames.patient.src = url;
+        $('patient-tab').href = url;
+        frames.patient.hidden = $('patient-tab').hidden = false;
+        $('patient-empty').hidden = true;
+        const name = chosen.querySelector('strong');
+        $('patient-label').textContent = 'Signed in as ' + (name ? name.textContent : 'the selected patient');
+      };
+      // Live updates replace sections; keep the outline on the replacement.
+      ['doctor', 'patient'].forEach(side => frames[side].addEventListener('load', () => {
+        const doc = docOf(side);
+        if (!doc || !doc.body) return;
+        new MutationObserver(() => { if (side === 'doctor') follow(); spotlight(side, false); })
+          .observe(doc.body, {subtree: true, childList: true, attributes: true, attributeFilter: ['class']});
+        if (side === 'doctor') follow();
+        spotlight(side, true);
+      }));
+      render();
+    })();
+  </script>
+</body>
+</html>
+{{end}}

@@ -14,7 +14,10 @@ import (
 
 // AuthPage is the view model for ordinary HTML login/signup forms. These forms
 // use redirects; chart updates continue to use Datastar SSE.
-type AuthPage struct{ Mode, CSRF, Email, Error, Message string }
+type AuthPage struct {
+	Mode, CSRF, Email, Error, Message string
+	Judge                             bool // show the judge mode entry
+}
 
 // authConfiguration accepts explicit settings and the existing Next.js-named
 // publishable key. Standard Supabase connection URLs identify the same project.
@@ -91,6 +94,9 @@ func (a *app) currentSession(r *http.Request) (session, bool) {
 
 func (a *app) sessionFor(r *http.Request, role string) (session, bool) {
 	s, ok := a.currentSession(r)
+	if ok && s.Judge && role == "patient" {
+		s, ok = a.judgePatientSession(r, s)
+	}
 	return s, ok && s.ProfileID != "" && validRole(role) && s.Role == role
 }
 
@@ -104,14 +110,23 @@ func sessionDestination(s session) string {
 func (a *app) home(w http.ResponseWriter, r *http.Request) {
 	dest := "/login"
 	if s, ok := a.currentSession(r); ok {
-		dest = a.invitationDestination(r, s)
+		dest = a.landing(r, s)
 	}
 	http.Redirect(w, r, dest, http.StatusSeeOther)
 }
 
+// landing sends a judge's top-level visit to the split view; links inside
+// its framed dashboards keep their usual destination instead of nesting it.
+func (a *app) landing(r *http.Request, s session) string {
+	if s.Judge && r.Header.Get("Sec-Fetch-Dest") != "iframe" {
+		return "/judge"
+	}
+	return a.invitationDestination(r, s)
+}
+
 func (a *app) authForm(w http.ResponseWriter, r *http.Request) {
 	if s, ok := a.currentSession(r); ok {
-		http.Redirect(w, r, a.invitationDestination(r, s), http.StatusSeeOther)
+		http.Redirect(w, r, a.landing(r, s), http.StatusSeeOther)
 		return
 	}
 	mode := "login"
@@ -123,6 +138,7 @@ func (a *app) authForm(w http.ResponseWriter, r *http.Request) {
 
 func (a *app) authPage(w http.ResponseWriter, r *http.Request, data AuthPage, status int) {
 	data.CSRF = newID()
+	data.Judge = a.judgeEnabled()
 	a.cookie(w, r, "clearchart_auth_csrf", data.CSRF, 3600)
 	body, err := a.render("auth.html", data)
 	if err != nil {

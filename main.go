@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"embed"
 	"errors"
 	"fmt"
@@ -26,6 +27,7 @@ var assets embed.FS
 type session struct {
 	AuthUserID, Email, ProfileID, Role, CSRF string
 	Expires                                  time.Time
+	Judge                                    bool // judge mode: doctor identity, may view any linked patient
 }
 
 type app struct {
@@ -37,12 +39,20 @@ type app struct {
 	hub           *eventHub
 	auth          AuthProvider
 	secureCookies bool
+	judgeDoctorID string            // empty unless JUDGE_MODE=true
+	judgePatients map[string]string // judge-linked patient ID -> email; guarded by mu
 }
 
 var labels = map[string]string{"note": "Clinical note", "prescription": "Prescription", "imaging": "Imaging", "pain": "Pain level", "mobility": "Mobility", "energy": "Energy"}
 
 func newApp(store Store, mode string) (*app, error) {
+	css, err := assets.ReadFile("static/styles.css")
+	if err != nil {
+		return nil, err
+	}
+	cssVersion := fmt.Sprintf("%x", sha256.Sum256(css))[:12]
 	t, err := template.New("").Funcs(template.FuncMap{
+		"cssVersion": func() string { return cssVersion },
 		"initials": func(s string) string {
 			var out []rune
 			for _, p := range strings.Fields(strings.TrimPrefix(s, "Dr. ")) {
@@ -96,6 +106,8 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("POST /healing", a.addHealing)
 	mux.HandleFunc("GET /events/{role}/{id}", a.events)
 	mux.HandleFunc("GET /mock-scans/{id}/{scan}", a.mockScan)
+	mux.HandleFunc("POST /judge", a.enterJudge)
+	mux.HandleFunc("GET /judge", a.judgeView)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		fmt.Fprintln(w, "ok")
@@ -111,10 +123,15 @@ func (a *app) routes() http.Handler {
 		w.Header().Set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400")
 		files.ServeHTTP(w, r)
 	}))
+	// The judge split view frames both dashboards from this origin.
+	frameOptions := "DENY"
+	if a.judgeEnabled() {
+		frameOptions = "SAMEORIGIN"
+	}
 	return withGzip(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "same-origin")
-		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-Frame-Options", frameOptions)
 		if !strings.HasPrefix(r.URL.Path, "/static/") {
 			w.Header().Set("Cache-Control", "no-store")
 		}
@@ -204,6 +221,19 @@ func main() {
 		a.secureCookies = true
 	default:
 		log.Fatal("COOKIE_SECURE must be true or false.")
+	}
+	switch strings.ToLower(os.Getenv("JUDGE_MODE")) {
+	case "", "false":
+	case "true":
+		judgeCtx, judgeCancel := context.WithTimeout(ctx, 15*time.Second)
+		a.judgeDoctorID, a.judgePatients, err = store.JudgeWorkspace(judgeCtx)
+		judgeCancel()
+		if err != nil {
+			log.Fatal("Judge mode setup failed. Check the database connection and schema.")
+		}
+		log.Printf("Judge mode on: %d patients linked to the judge doctor. The sign-in page shows a judge entry.", len(a.judgePatients))
+	default:
+		log.Fatal("JUDGE_MODE must be true or false.")
 	}
 	port := os.Getenv("PORT")
 	if port == "" {

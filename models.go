@@ -68,6 +68,7 @@ type Store interface {
 	RevokeInvitation(context.Context, string, string) error
 	PendingInvitationsForEmail(context.Context, string) ([]Invitation, error)
 	RecentInvitationActivity(context.Context, string) ([]Invitation, error)
+	JudgeWorkspace(context.Context) (string, map[string]string, error)
 	Close() error
 }
 

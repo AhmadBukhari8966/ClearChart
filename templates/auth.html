@@ -30,6 +30,11 @@
           <a href="/login" {{if eq .Mode "login"}}class="selected" aria-current="page"{{end}}>Sign in</a>
           <a href="/signup" {{if eq .Mode "signup"}}class="selected" aria-current="page"{{end}}>Create account</a>
         </nav>
+        {{if .Judge}}<form class="judge-entry" method="post" action="/judge">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <div><strong>Judging ClearChart?</strong><span>Skip sign-up. See the doctor and patient sides together, with every patient in the database loaded.</span></div>
+          <button class="button button-primary" type="submit">Enter judge mode {{template "icon-arrow"}}</button>
+        </form>{{end}}
         {{if .Error}}<div id="form-feedback" class="error" role="alert">{{.Error}}</div>{{end}}
         {{if .Message}}<div id="onboarding-result" role="status">{{.Message}}</div>{{end}}
         <form class="onboarding-form" method="post" action="/{{.Mode}}">

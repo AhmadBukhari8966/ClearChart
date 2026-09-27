@@ -1,9 +1,20 @@
 # Progress — 2026-09-26
 
 ## Current task
+Judge mode (2026-09-26). Builds and vets; temporary unit checks passed and were removed. NOT yet run against Supabase or clicked through in a browser.
+
+## Judge mode (this change)
+- `JUDGE_MODE=true` (added to `.env`): at startup `JudgeWorkspace()` (judge.go) upserts doctor profile "Dr. Judge Demo" (`judge@clearchart.demo`, no auth_user_id), links it to every patient in `care_team` (ON CONFLICT DO NOTHING; additive, no migration), adds one mock biometric row, and caches linked patient ID→email in `app.judgePatients`. Rerun on each judge entry to pick up new signups.
+- Sign-in page shows "Enter judge mode" (POST /judge, auth CSRF cookie) only when enabled. Issues a 4 h opaque session with `Judge: true` as the judge doctor. Normal Supabase login unchanged.
+- `sessionFor(r, "patient")` for judge sessions acts as the patient named by the `{id}` path value or an already-parsed `patient_id` form field, only if linked to the judge doctor (fail closed). Stateless, so several patient tabs work at once.
+- GET /judge: split view (templates/judge.html) with doctor and patient dashboards in iframes; a small judge-only inline script makes the patient pane follow the doctor's selected patient (exception to the no-custom-JS rule, limited to this page). Always side by side, filling the viewport (stacks under 900px). An 8-step guided tour bar (Back/Next, step dots, remembered in localStorage) highlights which pane to use and scrolls to and outlines the relevant section inside each iframe (outline reapplied after SSE patches). Hide/show guide, open-in-new-tab links, exit button.
+- `head` template links `styles.css?v=<content hash>` (`cssVersion` func in newApp) so new CSS is never masked by the 1 h static cache.
+- `X-Frame-Options` is SAMEORIGIN when judge mode is on (DENY otherwise). Top-level `/` and `/login` send judge sessions to /judge (`landing`, uses `Sec-Fetch-Dest`). Sidebar logout targets `_top`.
+- Known gap: the notification bell inside the patient pane shows the judge doctor's notifications (notificationsPanel uses currentSession role).
+
+## Performance (previous change)
 Performance pass (2026-09-26). Verified locally; no schema change, no migration needed. Previous task (timeline category filters) still awaits migration 003 on Supabase — see Next steps.
 
-## Performance (this change)
 - `store.go` `Dashboard()`: one SQL statement (CTEs + `json_build_object`/`json_agg`) replaces the 8–10 sequential queries in `dashboardData` (profile, patients, care-team check, biometrics, reports, invitation count, patient, doctors, records, uploads, healing). Selected-patient resolution and care-team authorization happen in SQL; requested-but-unlinked or malformed patient IDs → `ErrForbidden`. Patient directory order now `name,id` (deterministic ties).
 - lib/pq `binary_parameters=yes` added to the DSN automatically (`singleRoundTripDSN`): 1 network round trip per parameterized query instead of 2. Pool keeps all 10 connections idle-ready.
 - Handlers: `addRecord` drops the redundant `IsCareTeam` pre-check (`AddRecord` already authorizes in its INSERT) and reuses dashboard counts instead of re-querying all records/uploads; `uploadReport` uses one `Counts()` query; `addHealing` loads only `Healing()` instead of a full dashboard; notifications panel no longer loads an unused profile; `RespondInvitation` merges lock + eligibility into one query and returns the doctor ID (removed `InvitationByID` and the follow-up invitation lookup); invitation/review pages and startup schema checks load in parallel; patient notification after invite runs after the response.

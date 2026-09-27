@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.3/bundles/datastar.js"></script>
-<link rel="stylesheet" href="/static/styles.css">
+<link rel="stylesheet" href="/static/styles.css?v={{cssVersion}}">
 {{end}}
 
 {{define "brand"}}<span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M16 5v22M5 16h22" stroke="currentColor" stroke-width="6" stroke-linecap="round"/><path d="m8 24 16-16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></span><span>clearchart<span class="brand-dot">.</span></span>{{end}}
@@ -42,7 +42,7 @@
   </nav>
   <div class="sidebar-bottom">
     <div class="ownership-note"><span class="ownership-icon">{{template "icon-spark"}}</span><h3>A clearer kind of care.</h3><p>Your records. Your voice.<br>Everyone on the same page.</p></div>
-    <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit" class="new-profile-link w-full bg-transparent border-0 text-left">Sign out <span aria-hidden="true">&rarr;</span></button></form>
+    <form method="post" action="/logout" target="_top"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit" class="new-profile-link w-full bg-transparent border-0 text-left">Sign out <span aria-hidden="true">&rarr;</span></button></form>
     <div class="sidebar-profile"><span class="avatar avatar-sage">{{initials .Profile.Name}}</span><div><strong>{{.Profile.Name}}</strong><span>{{if eq .Profile.Role "doctor"}}Provider account{{else}}Patient account{{end}}</span></div><span class="profile-check">{{template "icon-check"}}</span></div>
     <p class="sidebar-disclosure">YOUR CONNECTED CARE WORKSPACE</p>
   </div>
