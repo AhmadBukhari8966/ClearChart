@@ -14,6 +14,7 @@ type Profile struct {
 type Record struct {
 	ID, PatientID, DoctorID, Type, Content, ImageURL, DoctorName, PatientName string
 	Timestamp                                                                 time.Time
+	Categories                                                                []string // explicit body-area tags; empty when uncategorized
 }
 
 type Upload struct {
@@ -41,11 +42,10 @@ type Dashboard struct {
 	Uploads, Reports                            []Upload
 	Healing                                     []Healing
 	Biometric                                   Biometric
-	CSRF, Mode, Filter, Summary, Role, ViewID   string
+	CSRF, Mode, Summary, Role, ViewID           string
+	Filter                                      timelineFilter
 	RecordCount, UploadCount, NotificationCount int
 	Today                                       time.Time
-	BodyHealth                                  AnatomyHealth
-	Page                                        string
 	PendingInvitations                          []Invitation // patient: invites awaiting response
 	InvitationActivity                          []Invitation // doctor: recent responses
 }

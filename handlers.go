@@ -19,7 +19,7 @@ import (
 func validRole(s string) bool { return s == "patient" || s == "doctor" }
 func validType(s string) bool { return s == "note" || s == "prescription" || s == "imaging" }
 
-func (a *app) dashboardData(ctx context.Context, s session, patientID, filter string) (Dashboard, error) {
+func (a *app) dashboardData(ctx context.Context, s session, patientID string, filter timelineFilter) (Dashboard, error) {
 	d := Dashboard{Role: s.Role, CSRF: s.CSRF, Mode: a.mode, Filter: filter, Today: time.Now(), ViewID: newID()}
 	var err error
 	if d.Profile, err = a.store.Profile(ctx, s.ProfileID); err != nil {
@@ -74,7 +74,7 @@ func (a *app) dashboardData(ctx context.Context, s session, patientID, filter st
 	d.RecordCount = len(records)
 	d.Summary = plainSummary(records)
 	for _, record := range records {
-		if filter == "" || record.Type == filter {
+		if filter.matches(record) {
 			d.Records = append(d.Records, record)
 		}
 	}
@@ -113,8 +113,8 @@ func (a *app) dashboard(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "This profile does not belong to your account.", 403)
 		return
 	}
-	filter := r.URL.Query().Get("type")
-	if filter != "" && !validType(filter) {
+	filter := timelineFilter{Type: r.URL.Query().Get("type"), Category: r.URL.Query().Get("category")}
+	if !filter.valid() {
 		http.Error(w, "Unknown timeline filter.", 400)
 		return
 	}
@@ -196,22 +196,32 @@ func (a *app) addRecord(w http.ResponseWriter, r *http.Request) {
 		a.feedback(w, "Choose a record type and enter a note between 3 and 5,000 characters.", 400)
 		return
 	}
-	record := Record{PatientID: patientID, DoctorID: s.ProfileID, Type: kind, Content: content}
+	categories, ok := normalizeCategories(r.Form["category"])
+	if !ok {
+		a.feedback(w, "Choose body areas from the list shown.", 400)
+		return
+	}
+	record := Record{PatientID: patientID, DoctorID: s.ProfileID, Type: kind, Content: content, Categories: categories}
 	if kind == "imaging" {
 		record.ImageURL = "/static/ct-scan.svg"
 	}
-	record, err = a.store.AddRecord(r.Context(), record)
-	if err != nil {
+	if _, err = a.store.AddRecord(r.Context(), record); err != nil {
 		a.feedback(w, "Your record could not be saved. Please try again.", 500)
 		return
 	}
-	fragment, err := a.render("record", record)
+	// Re-render with the doctor's active filters so a new record that does not
+	// match them is not shown under the wrong filter.
+	filter := timelineFilter{Type: r.FormValue("filter_type"), Category: r.FormValue("filter_category")}
+	if !filter.valid() {
+		filter = timelineFilter{}
+	}
+	d, err := a.dashboardData(r.Context(), s, patientID, filter)
 	if err != nil {
 		a.feedback(w, "Record saved. Refresh to see it.", 500)
 		return
 	}
 	startSSE(w)
-	patch(w, "#timeline", "prepend", fragment)
+	a.writeTimeline(w, d)
 	a.writeCounts(w, r.Context(), patientID)
 	patch(w, "#form-feedback", "outer", feedbackHTML("Record shared with your patient. Their timeline is up to date.", false))
 	a.hub.publish(patientID, r.FormValue("view_id"))
@@ -304,7 +314,7 @@ func (a *app) addHealing(w http.ResponseWriter, r *http.Request) {
 		a.feedback(w, "Your check-in could not be saved. Please try again.", 500)
 		return
 	}
-	d, err := a.dashboardData(r.Context(), s, "", "")
+	d, err := a.dashboardData(r.Context(), s, "", timelineFilter{})
 	if err != nil {
 		a.feedback(w, "Check-in saved. Refresh to see it.", 500)
 		return

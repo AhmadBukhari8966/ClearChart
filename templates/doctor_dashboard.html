@@ -8,8 +8,8 @@
 
 <body><a class="skip-link" href="#main-content">Skip to content</a>
   <div class="app-shell"
-    data-signals="{selectedpatient: '{{.Patient.ID}}', _savingnote: false}"
-    data-effect="$selectedpatient; @get('/events/doctor/{{.Profile.ID}}?view={{.ViewID}}', {openWhenHidden: true, filterSignals: {include: /^selectedpatient$/}})">
+    data-signals="{selectedpatient: '{{.Patient.ID}}', chartpatient: '{{.Patient.ID}}', timelinetype: '{{.Filter.Type}}', timelinecat: '{{.Filter.Category}}', _savingnote: false}"
+    data-effect="$selectedpatient; $timelinetype; $timelinecat; @get('/events/doctor/{{.Profile.ID}}?view={{.ViewID}}', {openWhenHidden: true, filterSignals: {include: /^(selectedpatient|chartpatient|timelinetype|timelinecat)$/}})">
     {{template "sidebar" .}}<div class="workspace" data-signals="{_notifOpen: false}">{{template "topbar" .}}
       <main class="main-content" id="main-content">
         <div class="page-heading">

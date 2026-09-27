@@ -8,7 +8,8 @@
 
 <body><a class="skip-link" href="#main-content">Skip to content</a>
   <div class="app-shell"
-    data-init="@get('/events/patient/{{.Profile.ID}}?view={{.ViewID}}&amp;type={{.Filter}}', {openWhenHidden: true})">
+    data-signals="{timelinetype: '{{.Filter.Type}}', timelinecat: '{{.Filter.Category}}'}"
+    data-effect="$timelinetype; $timelinecat; @get('/events/patient/{{.Profile.ID}}?view={{.ViewID}}', {openWhenHidden: true, filterSignals: {include: /^timeline(type|cat)$/}})">
     {{template "sidebar" .}}<div class="workspace" data-signals="{_notifOpen: false}">{{template "topbar" .}}
       <main id="main-content" class="main-content">
         <div class="page-heading">
@@ -63,12 +64,8 @@
                   <p class="section-subtitle">The whole story. Always up to date.</p>
                 </div><span class="subtle-tag"><span></span> Shared with you</span>
               </div>
-              <nav class="timeline-tabs" aria-label="Filter health records"><a href="/dashboard/patient/{{.Profile.ID}}"
-                  class="{{if not .Filter}}selected{{end}}">All activity</a><a
-                  href="/dashboard/patient/{{.Profile.ID}}?type=note" class="{{if eq .Filter `note`}}selected{{end}}">Doctor's notes</a><a
-                  href="/dashboard/patient/{{.Profile.ID}}?type=prescription" class="{{if eq .Filter `prescription`}}selected{{end}}">Prescriptions</a><a
-                  href="/dashboard/patient/{{.Profile.ID}}?type=imaging" class="{{if eq .Filter `imaging`}}selected{{end}}">Imaging</a></nav>
-              <div id="timeline" class="timeline-list">{{range .Records}}{{template "record" .}}{{end}}</div>
+              {{template "timeline-filters" .}}
+              <div id="timeline" class="timeline-list">{{template "timeline-items" .}}</div>
               <div class="timeline-end"><span></span> Your story, connected <span></span></div>
             </section>
             <section class="panel uploads-panel" id="patient-uploads">

@@ -51,11 +51,12 @@ func newApp(store Store, mode string) (*app, error) {
 			}
 			return string(out)
 		},
-		"date":      func(t time.Time) string { return t.Format("January 2, 2006") },
-		"shortDate": func(t time.Time) string { return t.Format("Jan 2") },
-		"clock":     func(t time.Time) string { return t.Format("3:04 PM") },
-		"percent":   func(v int) int { return v * 10 },
-		"bodyPercent": func(v int) int { return v * 20 },
+		"date":             func(t time.Time) string { return t.Format("January 2, 2006") },
+		"shortDate":        func(t time.Time) string { return t.Format("Jan 2") },
+		"clock":            func(t time.Time) string { return t.Format("3:04 PM") },
+		"percent":          func(v int) int { return v * 10 },
+		"categoryName":     categoryName,
+		"recordCategories": func() []RecordCategory { return recordCategories },
 		"label": func(s string) string {
 			labels := map[string]string{"note": "Clinical note", "prescription": "Prescription", "imaging": "Imaging", "pain": "Pain level", "mobility": "Mobility", "energy": "Energy"}
 			if v, ok := labels[s]; ok {
@@ -87,7 +88,6 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("GET /notifications", a.notificationsPanel)
 	mux.HandleFunc("POST /respond-invitation/{id}", a.respondInvitationInline)
 	mux.HandleFunc("GET /dashboard/{role}/{id}", a.dashboard)
-	mux.HandleFunc("GET /dashboard/{role}/{id}/body-map", a.bodyMap)
 	mux.HandleFunc("GET /onboard/{role}", a.onboardForm)
 	mux.HandleFunc("POST /onboard/{role}", a.onboard)
 	mux.HandleFunc("POST /add-record", a.addRecord)
@@ -165,6 +165,12 @@ func main() {
 	invitationCancel()
 	if err != nil {
 		log.Fatal("Invitation schema is not ready. Apply migrations/002_care_invitations.sql (schema.sql for a new database).")
+	}
+	categoryCtx, categoryCancel := context.WithTimeout(ctx, 5*time.Second)
+	_, err = store.Records(categoryCtx, "00000000-0000-0000-0000-000000000000")
+	categoryCancel()
+	if err != nil {
+		log.Fatal("Record category schema is not ready. Apply migrations/003_record_categories.sql (schema.sql for a new database).")
 	}
 	a, err := newApp(store, "Supabase connected")
 	if err != nil {

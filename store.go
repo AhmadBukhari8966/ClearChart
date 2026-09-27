@@ -90,11 +90,12 @@ func (s *postgresStore) Patients(ctx context.Context, doctor string) ([]Profile,
 }
 func scanRecord(row rowScanner) (Record, error) {
 	var r Record
-	err := row.Scan(&r.ID, &r.PatientID, &r.DoctorID, &r.Type, &r.Content, &r.Timestamp, &r.ImageURL, &r.DoctorName, &r.PatientName)
+	err := row.Scan(&r.ID, &r.PatientID, &r.DoctorID, &r.Type, &r.Content, &r.Timestamp, &r.ImageURL, &r.DoctorName, &r.PatientName, pq.Array(&r.Categories))
 	return r, storageError(err)
 }
 
-const recordColumns = `r.id::text,r.patient_id::text,r.doctor_id::text,r.type,r.content,r.timestamp,COALESCE(r.image_url,''),d.name,p.name`
+const recordColumns = `r.id::text,r.patient_id::text,r.doctor_id::text,r.type,r.content,r.timestamp,COALESCE(r.image_url,''),d.name,p.name,
+ ARRAY(SELECT mc.category FROM medical_record_categories mc WHERE mc.record_id=r.id ORDER BY mc.category)`
 
 func (s *postgresStore) Records(ctx context.Context, patient string) ([]Record, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+recordColumns+` FROM medical_records r JOIN profiles d ON d.id=r.doctor_id JOIN profiles p ON p.id=r.patient_id WHERE r.patient_id=$1 ORDER BY r.timestamp DESC,r.id DESC`, patient)
@@ -199,15 +200,33 @@ func (s *postgresStore) CreateProfile(ctx context.Context, p Profile) (Profile, 
 	return p, nil
 }
 func (s *postgresStore) AddRecord(ctx context.Context, r Record) (Record, error) {
-	// Authorization and insertion share one statement. ID and timestamp use DB defaults.
-	result, err := scanRecord(s.db.QueryRowContext(ctx, `WITH inserted AS (
+	// Authorization and insertion share one statement; explicit categories are
+	// stored in the same transaction. ID and timestamp use DB defaults.
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Record{}, err
+	}
+	defer tx.Rollback()
+	result, err := scanRecord(tx.QueryRowContext(ctx, `WITH inserted AS (
   INSERT INTO medical_records(patient_id,doctor_id,type,content,image_url)
   SELECT c.patient_id,c.doctor_id,$3,$4,NULLIF($5,'') FROM care_team c WHERE c.patient_id=$1 AND c.doctor_id=$2
   RETURNING *) SELECT `+recordColumns+` FROM inserted r JOIN profiles d ON d.id=r.doctor_id JOIN profiles p ON p.id=r.patient_id`, r.PatientID, r.DoctorID, r.Type, r.Content, r.ImageURL))
 	if errors.Is(err, ErrNotFound) {
 		return Record{}, ErrForbidden
 	}
-	return result, err
+	if err != nil {
+		return Record{}, err
+	}
+	if len(r.Categories) > 0 {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO medical_record_categories(record_id,category) SELECT $1::uuid,unnest($2::text[])`, result.ID, pq.Array(r.Categories)); err != nil {
+			return Record{}, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return Record{}, err
+	}
+	result.Categories = r.Categories
+	return result, nil
 }
 func (s *postgresStore) AddUpload(ctx context.Context, u Upload) (Upload, error) {
 	return scanUpload(s.db.QueryRowContext(ctx, `WITH inserted AS (

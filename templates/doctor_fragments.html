@@ -30,6 +30,8 @@
     <input type="hidden" name="view_id" value="{{.ViewID}}">
     <input type="hidden" name="doctor_id" value="{{.Profile.ID}}">
     <input type="hidden" name="patient_id" value="{{.Patient.ID}}">
+    <input type="hidden" name="filter_type" value="{{.Filter.Type}}" data-attr:value="$timelinetype">
+    <input type="hidden" name="filter_category" value="{{.Filter.Category}}" data-attr:value="$timelinecat">
     <fieldset class="record-fields" data-attr:disabled="$_savingnote || $selectedpatient !== '{{.Patient.ID}}'">
       <label for="record-type-{{.Patient.ID}}">Type of update</label>
       <select name="type" id="record-type-{{.Patient.ID}}">
@@ -41,6 +43,10 @@
       <textarea name="content" id="record-content-{{.Patient.ID}}" rows="4" minlength="3" maxlength="5000"
         placeholder="Share observations, the next steps, or a treatment update. Your patient will see this in their timeline."
         required></textarea>
+      <fieldset class="category-picker">
+        <legend>Body areas <span>Optional · lets the timeline be filtered by area</span></legend>
+        <div>{{range recordCategories}}<label><input type="checkbox" name="category" value="{{.ID}}"> {{.Name}}</label>{{end}}</div>
+      </fieldset>
       <div class="record-form-footer">
         <span>{{template "icon-people"}} Shared instantly with your patient</span>
         <button type="submit" class="button button-primary"
@@ -63,8 +69,7 @@
     </div>
     <span class="subtle-tag"><span></span> Live</span>
   </div>
-  <div id="timeline" class="timeline-list doctor-timeline">
-    {{range .Records}}{{template "record" .}}{{end}}
-  </div>
+  {{template "timeline-filters" .}}
+  <div id="timeline" class="timeline-list doctor-timeline">{{template "timeline-items" .}}</div>
 </section>
 {{end}}
